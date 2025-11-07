@@ -1,139 +1,158 @@
 // src/components/news/NewsForm.jsx
-import React, { useState } from "react";
-import { uploadImage, createNews, updateNews } from "../../services/newsService";
+import React, { useEffect, useState } from "react";
+import { uploadImage, createNews, updateNews, deleteImage } from "../../services/newsService";
 import { useAuth } from "../../contexts/AuthContext";
 
-export default function NewsForm({ existing = null, onSave }) {
-  const [title, setTitle] = useState(existing?.title || "");
-  const [subtitle, setSubtitle] = useState(existing?.subtitle || "");
-  const [category, setCategory] = useState(existing?.category || "General");
-  const [content, setContent] = useState(existing?.content || "");
-  const [imageFile, setImageFile] = useState(null);
-  const [preview, setPreview] = useState(existing?.imageUrl || "");
-  const [loading, setLoading] = useState(false);
+const NewsForm = ({ existing, onSaved }) => {
   const { user, userData } = useAuth();
+  const [title, setTitle] = useState("");
+  const [content, setContent] = useState("");
+  const [status, setStatus] = useState("Edición");
+  const [imageFile, setImageFile] = useState(null);
+  const [preview, setPreview] = useState(null);
+  const [saving, setSaving] = useState(false);
 
-  // Un reportero no puede setear estado a 'Publicado' — sólo a 'Edición' o 'Terminado'
-  const canSetStatus = userData?.role === "editor";
-  const [status, setStatus] = useState(existing?.status || "Edición");
+  //  Sincroniza cuando cambia "existing"
+  useEffect(() => {
+    if (existing) {
+      setTitle(existing.title || "");
+      setContent(existing.content || "");
+      setStatus(existing.status || "Edición");
+      setPreview(existing.imageUrl || null);
+    } else {
+      setTitle("");
+      setContent("");
+      setStatus("Edición");
+      setPreview(null);
+      setImageFile(null);
+    }
+  }, [existing]);
+
+  // ✅ Limpia objectURL cuando cambia imagen o se desmonta
+  useEffect(() => {
+    return () => {
+      if (preview && preview.startsWith("blob:")) {
+        URL.revokeObjectURL(preview);
+      }
+    };
+  }, [preview]);
+
+  const handleImageChange = (e) => {
+    const file = e.target.files[0];
+    if (file && file.type.startsWith("image/")) {
+      if (file.size > 5 * 1024 * 1024) {
+        alert("La imagen no debe superar 5 MB.");
+        return;
+      }
+      setImageFile(file);
+      setPreview(URL.createObjectURL(file));
+    } else {
+      alert("Selecciona un archivo de imagen válido.");
+    }
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setLoading(true);
+    if (!title || !content) {
+      alert("Título y contenido son obligatorios.");
+      return;
+    }
+
+    setSaving(true);
     try {
       let imageUrl = existing?.imageUrl || "";
       let imagePath = existing?.imagePath || "";
 
+      // ✅ Si hay nueva imagen, sube y borra la anterior
       if (imageFile) {
+        if (imagePath) await deleteImage(imagePath);
         const uploaded = await uploadImage(imageFile);
-        if (uploaded) {
-          imageUrl = uploaded.url;
-          imagePath = uploaded.path;
-        }
+        imageUrl = uploaded.url;
+        imagePath = uploaded.path;
       }
 
-      const data = {
+      const newsData = {
         title,
-        subtitle,
         content,
-        category,
+        status,
         imageUrl,
         imagePath,
-        author: user?.email,
-        status: status // el rol y políticas las controla el backend/frontend (PrivateRoute)
+        author: user.email,
+        updatedAt: new Date().toISOString(),
       };
 
-      if (existing) {
-        await updateNews(existing.id, data);
+      if (existing?.id) {
+        await updateNews(existing.id, newsData);
+        alert("Noticia actualizada correctamente.");
       } else {
-        await createNews(data);
+        await createNews({ ...newsData, createdAt: new Date().toISOString() });
+        alert("Noticia creada correctamente.");
       }
 
-      onSave?.();
-      // limpiar formulario si es nuevo
-      if (!existing) {
-        setTitle("");
-        setSubtitle("");
-        setContent("");
-        setImageFile(null);
-        setPreview("");
-        setCategory("General");
-        setStatus("Edición");
-      }
-    } catch (err) {
-      console.error("Error guardando noticia:", err);
-      alert("Error al guardar noticia");
+      if (onSaved) onSaved();
+    } catch (error) {
+      console.error("Error guardando noticia:", error);
+      alert("No se pudo guardar la noticia. Inténtalo nuevamente.");
     } finally {
-      setLoading(false);
+      setSaving(false);
     }
   };
 
   return (
-    <form onSubmit={handleSubmit} className="news-form p-4 bg-white rounded shadow">
-      <h2 className="text-xl font-semibold mb-3">{existing ? "Editar noticia" : "Nueva noticia"}</h2>
+    <form onSubmit={handleSubmit} className="space-y-4 bg-white p-4 rounded-2xl shadow-md">
+      <h2 className="text-lg font-semibold text-jdx-dark">
+        {existing ? "Editar Noticia" : "Nueva Noticia"}
+      </h2>
 
       <input
         type="text"
         placeholder="Título"
+        className="w-full p-2 border rounded-lg"
         value={title}
         onChange={(e) => setTitle(e.target.value)}
         required
-        className="w-full p-2 border rounded mb-2"
       />
-
-      <input
-        type="text"
-        placeholder="Subtítulo (bajante)"
-        value={subtitle}
-        onChange={(e) => setSubtitle(e.target.value)}
-        className="w-full p-2 border rounded mb-2"
-      />
-
-      <select value={category} onChange={(e) => setCategory(e.target.value)} className="w-full p-2 border rounded mb-2">
-        <option>General</option>
-        <option>Tecnología</option>
-        <option>Política</option>
-        <option>Deportes</option>
-        <option>Cultura</option>
-      </select>
 
       <textarea
         placeholder="Contenido"
+        className="w-full p-2 border rounded-lg h-32"
         value={content}
         onChange={(e) => setContent(e.target.value)}
         required
-        className="w-full p-2 border rounded mb-2 min-h-[160px]"
       />
 
-      <input
-        type="file"
-        accept="image/*"
-        onChange={(e) => {
-          const f = e.target.files[0];
-          setImageFile(f);
-          if (f) setPreview(URL.createObjectURL(f));
-        }}
-        className="mb-2"
-      />
+      <div>
+        <label className="block text-sm font-medium mb-1">Imagen:</label>
+        <input type="file" accept="image/*" onChange={handleImageChange} />
+        {preview && (
+          <img src={preview} alt="Preview" className="mt-2 w-40 h-40 object-cover rounded-lg" />
+        )}
+      </div>
 
-      {preview && <img src={preview} alt="preview" className="w-full rounded mb-2" />}
-
-      <div className="flex gap-2 items-center">
-        <button
-          disabled={loading}
-          className="px-4 py-2 rounded bg-teal-500 text-white hover:bg-teal-600"
+      <div>
+        <label className="block text-sm font-medium mb-1">Estado:</label>
+        <select
+          value={status}
+          onChange={(e) => setStatus(e.target.value)}
+          className="p-2 border rounded-lg"
+          disabled={userData?.role !== "editor"}
         >
-          {loading ? "Guardando..." : existing ? "Actualizar" : "Guardar"}
-        </button>
-
-        <select value={status} onChange={(e) => setStatus(e.target.value)} className="p-2 border rounded">
-          {/* un reportero sólo podrá poner Edición o Terminado si no es editor */}
-          <option>Edición</option>
-          <option>Terminado</option>
-          {canSetStatus && <option>Publicado</option>}
-          {canSetStatus && <option>Desactivado</option>}
+          <option value="Edición">Edición</option>
+          <option value="Terminado">Terminado</option>
+          <option value="Publicado">Publicado</option>
+          <option value="Desactivado">Desactivado</option>
         </select>
       </div>
+
+      <button
+        type="submit"
+        disabled={saving}
+        className="bg-jdx-accent text-white px-4 py-2 rounded-xl hover:bg-jdx-dark transition"
+      >
+        {saving ? "Guardando..." : "Guardar"}
+      </button>
     </form>
   );
-}
+};
+
+export default NewsForm;

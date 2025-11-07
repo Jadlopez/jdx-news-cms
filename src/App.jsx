@@ -1,11 +1,11 @@
 // src/App.jsx
 import React, { Suspense, lazy } from "react";
-import { Routes, Route, Navigate } from "react-router-dom";
+import { Routes, Route } from "react-router-dom";
 import Header from "./components/layout/Header";
 import Footer from "./components/layout/Footer";
 import PrivateRoute from "./components/layout/PrivateRoute";
 
-// pages (puedes lazy-load)
+// Lazy-loaded pages
 const Home = lazy(() => import("./pages/Home"));
 const NewsView = lazy(() => import("./components/news/NewsView"));
 const Login = lazy(() => import("./components/auth/Login"));
@@ -17,22 +17,22 @@ const NotFound = lazy(() => import("./pages/NotFound"));
 
 export default function App() {
   return (
-    <div className="flex justify-center items-center h-screen">
+    <div className="flex flex-col min-h-screen bg-gray-50">
       <Header />
 
-      <main style={{ minHeight: "70vh" }}>
-        <Suspense fallback={<div>Cargando...</div>}>
+      <main className="flex-1">
+        <Suspense fallback={<div className="text-center mt-10">Cargando...</div>}>
           <Routes>
-            {/* Public */}
+            {/* Rutas públicas */}
             <Route path="/" element={<Home />} />
             <Route path="/noticia/:id" element={<NewsView />} />
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
 
-            {/* Protected: sólo usuarios autenticados */}
+            {/* Rutas protegidas */}
             <Route element={<PrivateRoute />}>
               <Route path="/dashboard" element={<Dashboard />} />
-              {/* rutas específicas por rol */}
+
               <Route element={<PrivateRoute allowedRoles={["reportero"]} />}>
                 <Route path="/dashboard/reportero" element={<ReporterDashboard />} />
               </Route>
@@ -41,9 +41,15 @@ export default function App() {
                 <Route path="/dashboard/editor" element={<EditorDashboard />} />
               </Route>
 
-              <Route path="/dashboard/no-autorizado" element={<div>No tienes permisos para acceder</div>} />
+              <Route
+                path="/dashboard/no-autorizado"
+                element={<div className="text-center text-red-600 mt-10">
+                  No tienes permisos para acceder
+                </div>}
+              />
             </Route>
 
+            {/* 404 */}
             <Route path="*" element={<NotFound />} />
           </Routes>
         </Suspense>

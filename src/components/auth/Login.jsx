@@ -1,94 +1,79 @@
 // src/components/auth/Login.jsx
 import React, { useState } from "react";
-import { useNavigate, Link } from "react-router-dom";
-import { loginUser, resetPassword } from "../../services/authService";
+import { useNavigate } from "react-router-dom";
+import { loginUser, getUserData } from "../../services/authService";
+import { useAuth } from "../../contexts/AuthContext";
 
-export default function Login() {
-  const [form, setForm] = useState({ email: "", password: "" });
+const Login = () => {
+  const { setUserData } = useAuth();
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
-  const [resetSent, setResetSent] = useState(false);
   const navigate = useNavigate();
 
-  const handleChange = (e) => setForm({ ...form, [e.target.name]: e.target.value });
-
-  const handleSubmit = async (e) => {
+  const handleLogin = async (e) => {
     e.preventDefault();
     setError("");
     setLoading(true);
     try {
-      await loginUser(form.email, form.password);
-      navigate("/dashboard");
+      const user = await loginUser(email, password);
+      const data = await getUserData(user.uid);
+      setUserData(data);
+
+      // ✅ Redirigir según rol
+      if (data.role === "editor") {
+        navigate("/dashboard/editor");
+      } else {
+        navigate("/dashboard/reportero");
+      }
     } catch (err) {
-      setError("Correo o contraseña incorrectos");
+      console.error("Error al iniciar sesión:", err);
+      setError("Correo o contraseña incorrectos.");
     } finally {
       setLoading(false);
     }
   };
 
-  const handleReset = async () => {
-    if (!form.email) return setError("Escribe tu correo para restablecer");
-    try {
-      await resetPassword(form.email);
-      setResetSent(true);
-    } catch (err) {
-      setError(err.message);
-    }
-  };
-
   return (
-    <div className="auth-container" style={{ maxWidth: 400, margin: "40px auto" }}>
-      <h2>Iniciar sesión</h2>
-      {error && <div style={{ color: "red", marginBottom: 8 }}>{error}</div>}
-      {resetSent && <div style={{ color: "green", marginBottom: 8 }}>Correo de recuperación enviado.</div>}
+    <div className="min-h-screen flex items-center justify-center bg-gray-100">
+      <form
+        onSubmit={handleLogin}
+        className="bg-white p-8 rounded-2xl shadow-lg w-96 space-y-4"
+      >
+        <h2 className="text-2xl font-bold text-center text-jdx-dark">
+          Iniciar Sesión
+        </h2>
 
-      <form onSubmit={handleSubmit}>
+        {error && <p className="text-red-500 text-sm">{error}</p>}
+
         <input
           type="email"
-          name="email"
           placeholder="Correo electrónico"
-          value={form.email}
-          onChange={handleChange}
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          className="w-full border p-2 rounded-lg"
           required
-          style={{ display: "block", width: "100%", marginBottom: 8, padding: 8 }}
         />
         <input
           type="password"
-          name="password"
           placeholder="Contraseña"
-          value={form.password}
-          onChange={handleChange}
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          className="w-full border p-2 rounded-lg"
           required
-          style={{ display: "block", width: "100%", marginBottom: 12, padding: 8 }}
         />
 
         <button
           type="submit"
           disabled={loading}
-          style={{
-            background: "#00bfae",
-            color: "#fff",
-            border: "none",
-            padding: "10px 16px",
-            width: "100%",
-            borderRadius: 8,
-            cursor: "pointer",
-          }}
+          className="w-full bg-jdx-accent text-white p-2 rounded-lg hover:bg-jdx-dark transition"
         >
-          {loading ? "Entrando..." : "Entrar"}
+          {loading ? "Ingresando..." : "Entrar"}
         </button>
       </form>
-
-      <p style={{ marginTop: 10 }}>
-        ¿Olvidaste tu contraseña?{" "}
-        <button onClick={handleReset} style={{ color: "#00bfae", background: "none", border: "none", cursor: "pointer" }}>
-          Restablecer
-        </button>
-      </p>
-
-      <p>
-        ¿No tienes cuenta? <Link to="/register">Regístrate</Link>
-      </p>
     </div>
   );
-}
+};
+
+export default Login;

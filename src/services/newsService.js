@@ -1,4 +1,5 @@
 // src/services/newsService.js
+
 import {
   collection,
   addDoc,
@@ -9,13 +10,14 @@ import {
   deleteDoc,
   query,
   orderBy,
-  where
+  where,
+  serverTimestamp
 } from "firebase/firestore";
 import { db, storage } from "../firebase/firebaseConfig";
 import { ref, uploadBytes, getDownloadURL, deleteObject } from "firebase/storage";
 
 /**
- * Sube una imagen y devuelve { url, path }
+ * 📸 Sube una imagen y devuelve { url, path }
  * path: ruta relativa en el storage (ej: news/123_filename.jpg)
  */
 export async function uploadImage(file, folder = "news") {
@@ -29,29 +31,30 @@ export async function uploadImage(file, folder = "news") {
 }
 
 /**
- * Crear noticia (incluye imageUrl e imagePath si aplica)
+ * 📰 Crear noticia (incluye imageUrl e imagePath si aplica)
  */
 export async function createNews(data) {
   const newsRef = collection(db, "news");
-  // Asegurar campos mínimos y estado por defecto
+
   const payload = {
     title: data.title || "",
     subtitle: data.subtitle || "",
     content: data.content || "",
     category: data.category || "General",
     imageUrl: data.imageUrl || "",
-    imagePath: data.imagePath || "", // para eliminar luego
+    imagePath: data.imagePath || "",
     author: data.author || "",
     status: data.status || "Edición", // Edición | Terminado | Publicado | Desactivado
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString()
+    createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp()
   };
+
   const docRef = await addDoc(newsRef, payload);
   return docRef.id;
 }
 
 /**
- * Obtener todas (o por status opcional)
+ * 📋 Obtener todas las noticias (o filtrar por estado)
  */
 export async function getAllNews(status = null) {
   const newsRef = collection(db, "news");
@@ -61,12 +64,13 @@ export async function getAllNews(status = null) {
   } else {
     q = query(newsRef, orderBy("createdAt", "desc"));
   }
+
   const snap = await getDocs(q);
   return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
 }
 
 /**
- * Obtener una noticia
+ * 🔍 Obtener una noticia específica por ID
  */
 export async function getNewsById(id) {
   const docRef = doc(db, "news", id);
@@ -75,27 +79,27 @@ export async function getNewsById(id) {
 }
 
 /**
- * Actualizar noticia (no borra la imagen anterior)
+ * ✏️ Actualizar noticia (mantiene la imagen anterior)
  */
 export async function updateNews(id, data) {
   const docRef = doc(db, "news", id);
   const payload = {
     ...data,
-    updatedAt: new Date().toISOString()
+    updatedAt: serverTimestamp()
   };
   await updateDoc(docRef, payload);
 }
 
 /**
- * Actualizar sólo el estado (útil para el editor)
+ * 🔄 Cambiar sólo el estado (útil para el editor)
  */
 export async function updateNewsStatus(id, status) {
   const docRef = doc(db, "news", id);
-  await updateDoc(docRef, { status, updatedAt: new Date().toISOString() });
+  await updateDoc(docRef, { status, updatedAt: serverTimestamp() });
 }
 
 /**
- * Eliminar noticia + imagen si se proporcionó imagePath
+ * 🗑️ Eliminar noticia + su imagen asociada (si existe)
  */
 export async function deleteNews(id, imagePath) {
   const docRef = doc(db, "news", id);

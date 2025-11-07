@@ -4,9 +4,11 @@ import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../../contexts/AuthContext";
 import { signOut } from "firebase/auth";
 import { auth } from "../../firebase/firebaseConfig";
+import logo from "../../assets/logo.png";
+import "./Header.css"; // Importa el CSS externo
 
 export default function Header() {
-  const { user, userData } = useAuth();
+  const { user } = useAuth();
   const navigate = useNavigate();
 
   const handleLogout = async () => {
@@ -15,25 +17,29 @@ export default function Header() {
   };
 
   return (
-    <header style={{ background: "#0f1b2e", color: "#fff", padding: "12px 24px" }}>
-      <div className="header-inner" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <Link to="/" style={{ color: "#00bfae", fontWeight: "700", textDecoration: "none" }}>
-          JDX News
+    <header className="header">
+      <div className="header-inner">
+        {/* Logo a la izquierda */}
+        <Link to="/" className="header-logo">
+          <img src={logo} alt="JDX News Logo" />
         </Link>
 
-        <nav>
-          <Link to="/" style={{ color: "#fff", marginRight: 12 }}>Inicio</Link>
+        {/* Nombre centrado */}
+        <h1 className="header-title">JDX News</h1>
+
+        {/* Navegación */}
+        <nav className="header-nav">
+          <Link to="/">Inicio</Link>
+
           {user ? (
             <>
-              <Link to="/dashboard" style={{ color: "#fff", marginRight: 12 }}>Panel</Link>
-              <button onClick={handleLogout} style={{ background: "transparent", color: "#fff", border: "1px solid #00bfae", padding: "6px 10px", borderRadius: 8 }}>
-                Cerrar sesión
-              </button>
+              <Link to="/dashboard">Panel</Link>
+              <button onClick={handleLogout}>Cerrar sesión</button>
             </>
           ) : (
             <>
-              <Link to="/login" style={{ color: "#fff", marginRight: 12 }}>Ingresar</Link>
-              <Link to="/register" style={{ color: "#00bfae" }}>Registro</Link>
+              <Link to="/login">Ingresar</Link>
+              <Link to="/register">Registro</Link>
             </>
           )}
         </nav>

@@ -1,9 +1,9 @@
-/* src/assets/global.css */
+/* src/index.css */
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-/* Opcional: reset o estilos globales */
+/* Reset básico */
 * {
   margin: 0;
   padding: 0;
@@ -11,6 +11,25 @@
 }
 
 body {
-  font-family: system-ui, -apple-system, sans-serif;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
   background-color: #f9fafb;
+  color: #0f1b2e;
+}
+
+/* Paleta JDX News */
+:root {
+  --jdx-dark: #0f1b2e;
+  --jdx-accent: #00bfae;
+}
+
+.text-jdx-dark {
+  color: var(--jdx-dark);
+}
+
+.bg-jdx-accent {
+  background-color: var(--jdx-accent);
+}
+
+.hover\:bg-jdx-dark:hover {
+  background-color: var(--jdx-dark);
 }
