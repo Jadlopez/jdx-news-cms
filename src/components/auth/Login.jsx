@@ -2,10 +2,8 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { loginUser, getUserData } from "../../services/authService";
-import { useAuth } from "../../contexts/AuthContext";
 
 const Login = () => {
-  const { setUserData } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -17,12 +15,16 @@ const Login = () => {
     setError("");
     setLoading(true);
     try {
-      const user = await loginUser(email, password);
-      const data = await getUserData(user.uid);
-      setUserData(data);
+      // loginUser devuelve el objeto 'data' de Supabase, que contiene 'user'
+      const { user } = await loginUser(email, password);
+      if (!user) throw new Error("No se pudo iniciar sesión.");
 
-      // ✅ Redirigir según rol
-      if (data.role === "editor") {
+      // Obtener perfil desde la tabla 'usuarios' y normalizar role
+      const profile = await getUserData(user.id);
+      const role = (profile?.role ?? profile?.rol ?? "").toString().toLowerCase();
+
+      // Redirigir según rol (normalizado a minúsculas)
+      if (role === "editor") {
         navigate("/dashboard/editor");
       } else {
         navigate("/dashboard/reportero");
@@ -41,9 +43,7 @@ const Login = () => {
         onSubmit={handleLogin}
         className="bg-white p-8 rounded-2xl shadow-lg w-96 space-y-4"
       >
-        <h2 className="text-2xl font-bold text-center text-jdx-dark">
-          Iniciar Sesión
-        </h2>
+        <h2 className="text-2xl font-bold text-center text-jdx-dark">Iniciar Sesión</h2>
 
         {error && <p className="text-red-500 text-sm">{error}</p>}
 
