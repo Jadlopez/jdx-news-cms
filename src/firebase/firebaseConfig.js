@@ -5,14 +5,14 @@ import { getFirestore } from "firebase/firestore";
 import { getStorage } from "firebase/storage";
 
 const firebaseConfig = {
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
-  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
-  appId: import.meta.env.VITE_FIREBASE_APP_ID
+  apiKey: "AIzaSyCcVd4YdEDS7iOhqFbWObXoER_lzS27fx0",
+  authDomain: "jdx-news-cms.firebaseapp.com",
+  projectId: "jdx-news-cms",
+  storageBucket: "jdx-news-cms.firebasestorage.app",
+  messagingSenderId: "71271426657",
+  appId: "1:71271426657:web:5b9eb5a47ef6c4e68f9820",
+  measurementId: "G-CR1D6MZVT5",
 };
-
 const app = initializeApp(firebaseConfig);
 
 export const auth = getAuth(app);
