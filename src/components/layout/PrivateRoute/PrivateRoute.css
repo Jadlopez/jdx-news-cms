@@ -1,0 +1,118 @@
+/* src/components/layout/PrivateRoute.css */
+:root {
+  --jdx-dark: #0f1b2e;
+  --jdx-accent: #00bfae;
+  --jdx-muted: #94a3b8;
+  --jdx-white: #ffffff;
+}
+
+/* Contenedor centrado mobile-first */
+.private-route-loading {
+  min-height: 40vh; /* espacio suficiente mientras se resuelve la sesión */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.25rem; /* 20px */
+  background: transparent;
+}
+
+/* Agrupa spinner + texto */
+.private-route-status {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
+  text-align: center;
+}
+
+/* Spinner SVG: tamaño y color */
+.private-route-spinner {
+  width: 2.5rem;  /* 40px */
+  height: 2.5rem;
+  color: var(--jdx-accent);
+  display: block;
+  -webkit-animation: jdx-spin 1s linear infinite;
+  animation: jdx-spin 1s linear infinite;
+}
+
+/* Mensaje de espera */
+.private-route-message {
+  font-size: 0.95rem;
+  color: var(--jdx-muted);
+}
+
+/* Estado de carga alternativo (más pequeño) */
+.private-route-small .private-route-spinner {
+  width: 1.5rem;
+  height: 1.5rem;
+}
+
+/* Focus visible para accesibilidad */
+.private-route-status a:focus,
+.private-route-status button:focus {
+  outline: 3px solid rgba(0, 191, 174, 0.18);
+  outline-offset: 3px;
+  border-radius: 6px;
+}
+
+/* Animación del spinner */
+@-webkit-keyframes jdx-spin {
+  0% {
+    -webkit-transform: rotate(0deg);
+            transform: rotate(0deg);
+  }
+  100% {
+    -webkit-transform: rotate(360deg);
+            transform: rotate(360deg);
+  }
+}
+@keyframes jdx-spin {
+  0% {
+    -webkit-transform: rotate(0deg);
+            transform: rotate(0deg);
+  }
+  100% {
+    -webkit-transform: rotate(360deg);
+            transform: rotate(360deg);
+  }
+}
+
+/* Mensaje "no autorizado" (si decides mostrarlo en vez de redirigir) */
+.private-route-unauthorized {
+  padding: 2rem;
+  background: #fff;
+  border-radius: 8px;
+  box-shadow: 0 6px 20px rgba(15, 27, 46, 0.08);
+  color: var(--jdx-dark);
+  max-width: 720px;
+  margin: 0 1rem;
+}
+.private-route-unauthorized h2 {
+  margin: 0 0 0.5rem 0;
+  font-size: 1.125rem;
+  color: var(--jdx-dark);
+}
+.private-route-unauthorized p {
+  margin: 0 0 1rem 0;
+  color: var(--jdx-muted);
+}
+.private-route-unauthorized .btn {
+  display: inline-block;
+  padding: 0.5rem 0.75rem;
+  border-radius: 8px;
+  text-decoration: none;
+  background: var(--jdx-accent);
+  color: var(--jdx-white);
+  font-weight: 600;
+}
+
+/* Desktop: conservar centrado y ajustar tamaño */
+@media (min-width: 768px) {
+  .private-route-loading {
+    padding: 1.5rem;
+  }
+
+  .private-route-message {
+    font-size: 1rem;
+  }
+}

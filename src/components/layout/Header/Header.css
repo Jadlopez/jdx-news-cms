@@ -1,0 +1,226 @@
+/* src/components/layout/Header.css */
+/* Variables (usa las definidas globalmente si existen) */
+:root {
+  --jdx-dark: #0f1b2e;
+  --jdx-accent: #00bfae;
+  --jdx-white: #ffffff;
+}
+
+/* Mobile-first */
+.jdx-header {
+  background-color: var(--jdx-dark);
+  color: var(--jdx-white);
+  padding: 10px 14px;
+  position: sticky;
+  top: 0;
+  z-index: 40;
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.03);
+}
+
+.jdx-header-inner {
+  max-width: 1100px;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+/* Logo */
+.jdx-logo-link {
+  display: inline-flex;
+  align-items: center;
+  text-decoration: none;
+}
+.jdx-logo {
+  width: 44px;
+  height: 44px;
+  object-fit: contain;
+  border-radius: 8px;
+  display: block;
+}
+
+/* Botón menú hamburguesa */
+.jdx-menu-btn {
+  background: transparent;
+  border: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px;
+  cursor: pointer;
+  color: var(--jdx-white);
+}
+
+/* Hamburger icon básico (animado) */
+.hamburger {
+  width: 22px;
+  height: 2px;
+  background: var(--jdx-white);
+  display: block;
+  position: relative;
+  transition: transform 0.25s ease;
+}
+.hamburger::before,
+.hamburger::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  width: 22px;
+  height: 2px;
+  background: var(--jdx-white);
+  transition: transform 0.25s ease, opacity 0.25s ease;
+}
+.hamburger::before {
+  top: -7px;
+}
+.hamburger::after {
+  top: 7px;
+}
+.hamburger.is-active {
+  background: transparent;
+}
+.hamburger.is-active::before {
+  transform: translateY(7px) rotate(45deg);
+}
+.hamburger.is-active::after {
+  transform: translateY(-7px) rotate(-45deg);
+}
+
+/* Navegación móvil (panel desplegable) */
+.jdx-nav {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  background: var(--jdx-white);
+  color: var(--jdx-dark);
+  box-shadow: 0 8px 24px rgba(15, 27, 46, 0.25);
+  transform-origin: top;
+  transform: scaleY(0);
+  transition: transform 180ms ease-in-out, opacity 180ms ease-in-out;
+  opacity: 0;
+  pointer-events: none;
+  padding: 12px 14px;
+  border-bottom-left-radius: 8px;
+  border-bottom-right-radius: 8px;
+}
+
+/* Cuando está abierto */
+.jdx-nav.open {
+  transform: scaleY(1);
+  opacity: 1;
+  pointer-events: auto;
+}
+
+/* Enlaces dentro del menú móvil (verticales) */
+.jdx-nav-link {
+  display: block;
+  padding: 10px 8px;
+  color: var(--jdx-dark);
+  text-decoration: none;
+  font-weight: 600;
+  border-radius: 6px;
+  margin-bottom: 6px;
+  transition: background 0.12s ease, color 0.12s ease;
+}
+.jdx-nav-link:hover,
+.jdx-nav-link:focus {
+  background: rgba(0, 191, 174, 0.08);
+  color: var(--jdx-dark);
+  outline: none;
+}
+
+/* Botón de registro con acento */
+.jdx-register {
+  background: var(--jdx-accent);
+  color: var(--jdx-white);
+  display: inline-block;
+  text-align: center;
+}
+.jdx-register:hover {
+  filter: brightness(0.95);
+}
+
+/* Botón de logout estilizado */
+.jdx-logout {
+  background: transparent;
+  border: 1px solid rgba(15, 27, 46, 0.08);
+  padding: 8px;
+  width: 100%;
+  text-align: left;
+}
+
+/* Desktop styles */
+@media (min-width: 768px) {
+  .jdx-header {
+    padding: 14px 20px;
+  }
+
+  .jdx-header-inner {
+    align-items: center;
+  }
+
+  .jdx-logo {
+    width: 150px;
+    height: auto;
+    border-radius: 6px;
+  }
+
+  /* ocultar botón hamburguesa en desktop */
+  .jdx-menu-btn {
+    display: none;
+  }
+
+  /* Mostrar nav horizontal */
+  .jdx-nav {
+    position: static;
+    transform: none;
+    opacity: 1;
+    pointer-events: auto;
+    display: flex;
+    gap: 14px;
+    background: transparent;
+    padding: 0;
+    box-shadow: none;
+    color: var(--jdx-white);
+  }
+
+  .jdx-nav-link {
+    display: inline-flex;
+    align-items: center;
+    padding: 8px 12px;
+    color: var(--jdx-white);
+    margin-bottom: 0;
+    border-radius: 8px;
+    font-weight: 600;
+  }
+
+  .jdx-nav-link:hover,
+  .jdx-nav-link:focus {
+    background: rgba(0, 191, 174, 0.12);
+    color: var(--jdx-white);
+  }
+
+  .jdx-register {
+    background: var(--jdx-accent);
+    color: var(--jdx-white);
+  }
+
+  .jdx-logout {
+    background: transparent;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    color: var(--jdx-white);
+    padding: 6px 10px;
+  }
+}
+
+/* Pequeños ajustes de accesibilidad */
+.jdx-menu-btn:focus,
+.jdx-nav-link:focus,
+.jdx-logout:focus,
+.jdx-register:focus {
+  outline: 3px solid rgba(0, 191, 174, 0.18);
+  outline-offset: 2px;
+  border-radius: 6px;
+}

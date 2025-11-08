@@ -1,0 +1,39 @@
+/* src/components/dashboard/EditorDashboard/EditorDashboard.css */
+/* Editor Dashboard - estilos base */
+
+:root {
+  --jdx-dark: #0f1b2e;
+  --jdx-accent: #00bfae;
+  --muted: #6b7280;
+  --card-bg: #fff;
+  --radius-md: 10px;
+}
+
+.editor-dashboard { max-width: 1100px; margin: 0 auto; color: var(--jdx-dark); }
+.editor-header h1 { margin: 0 0 4px 0; }
+.text-muted { color: var(--muted); margin: 0 0 8px 0; }
+
+.editor-controls {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.control-group { display: flex; gap: 8px; align-items: center; }
+.control-select { padding: 8px 10px; border-radius: 8px; border: 1px solid #e6e9ef; }
+.control-btn { padding: 8px 10px; border-radius: 8px; background: var(--jdx-accent); color: #fff; border: none; cursor: pointer; font-weight: 700; }
+.control-input { padding: 8px 10px; border-radius: 8px; border: 1px solid #e6e9ef; min-width: 220px; }
+
+.editor-error { margin: 10px 0; color: #8b1e1e; background: #fff2f2; padding: 10px; border-radius: 8px; }
+.editor-loading { padding: 18px; color: var(--muted); }
+
+/* meta */
+.editor-list-meta { color: var(--muted); }
+
+/* small responsive tweaks */
+@media (max-width: 640px) {
+  .editor-controls { flex-direction: column; align-items: stretch; }
+  .control-group { width: 100%; justify-content: space-between; }
+}

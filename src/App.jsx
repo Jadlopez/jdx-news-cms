@@ -1,19 +1,24 @@
-// src/App.jsx
 import React, { Suspense, lazy } from "react";
 import { Routes, Route } from "react-router-dom";
-import Header from "./components/layout/Header";
-import Footer from "./components/layout/Footer";
-import PrivateRoute from "./components/layout/PrivateRoute";
+
+// Layout components
+import Header from "./components/layout/Header/Header";
+import Footer from "./components/layout/Footer/Footer";
+import PrivateRoute from "./components/layout/PrivateRoute/PrivateRoute";
 
 // Lazy-loaded pages
-const Home = lazy(() => import("./pages/Home"));
-const NewsView = lazy(() => import("./components/news/NewsView"));
-const Login = lazy(() => import("./components/auth/Login"));
-const Register = lazy(() => import("./components/auth/Register"));
-const Dashboard = lazy(() => import("./components/dashboard/Dashboard"));
-const ReporterDashboard = lazy(() => import("./components/dashboard/ReporterDashboard"));
-const EditorDashboard = lazy(() => import("./components/dashboard/EditorDashboard"));
-const NotFound = lazy(() => import("./pages/NotFound"));
+const Home = lazy(() => import("./pages/Home/Home"));
+const NewsView = lazy(() => import("./components/news/NewsView/NewsView"));
+const Login = lazy(() => import("./components/auth/Login/Login"));
+const Register = lazy(() => import("./components/auth/Register/Register"));
+const Dashboard = lazy(() => import("./components/dashboard/Dashboard/Dashboard"));
+const ReporterDashboard = lazy(() =>
+  import("./components/dashboard/ReporterDashboard/ReporterDashboard")
+);
+const EditorDashboard = lazy(() =>
+  import("./components/dashboard/EditorDashboard/EditorDashboard")
+);
+const NotFound = lazy(() => import("./pages/NotFound/NotFound"));
 
 export default function App() {
   return (
@@ -43,9 +48,11 @@ export default function App() {
 
               <Route
                 path="/dashboard/no-autorizado"
-                element={<div className="text-center text-red-600 mt-10">
-                  No tienes permisos para acceder
-                </div>}
+                element={
+                  <div className="text-center text-red-600 mt-10">
+                    No tienes permisos para acceder
+                  </div>
+                }
               />
             </Route>
 
