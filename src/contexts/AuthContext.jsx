@@ -9,18 +9,8 @@ import React, {
 import { supabase } from "../supabase/client";
 
 const AuthContext = createContext();
+export const useAuth = () => useContext(AuthContext);
 
-export function useAuth() {
-  return useContext(AuthContext);
-}
-
-/**
- * AuthProvider:
- * - user: objeto de Firebase Auth (si está logueado)
- * - userData: doc de Firestore con metadatos del usuario (ej: role)
- * - loading: mientras se resuelve el estado de autenticación
- * - setUserData: función para actualizar userData desde componentes (por ejemplo Login)
- */
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [userData, setUserData] = useState(null);
@@ -29,11 +19,13 @@ export function AuthProvider({ children }) {
   const mountedRef = useRef(true);
 
   useEffect(() => {
+    console.log("Iniciando AuthContext...");
     mountedRef.current = true;
     setLoading(true);
 
     // First, try to get current user synchronously so page refreshes have immediate state
     (async () => {
+      console.log("Verificando sesión inicial...");
       try {
         const { data: userDataResp, error: userErr } =
           await supabase.auth.getUser();
@@ -59,11 +51,16 @@ export function AuthProvider({ children }) {
             if (profile) {
               setUserData(profile);
             } else {
+              // No hay perfil en la tabla `users` — no asignamos un rol por defecto
+              // para evitar dar permisos involuntarios. Marcamos como perfil
+              // incompleto (role = null) para que la UI/roteo lo traten como
+              // usuario que necesita completar perfil o esperar aprobación.
               setUserData({
                 id: currentUser.id,
                 email: currentUser.email,
                 name: currentUser.user_metadata?.name ?? null,
-                role: "reportero",
+                role: null,
+                profileMissing: true,
                 created_at: new Date().toISOString(),
               });
             }
@@ -79,9 +76,14 @@ export function AuthProvider({ children }) {
     })();
 
     // Subscribe to auth changes to react to sign in / sign out events
+    console.log("Configurando suscripción a cambios de autenticación...");
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((event, session) => {
+      console.log("Cambio de estado de autenticación detectado:", {
+        event,
+        hasSession: !!session,
+      });
       console.debug(
         "AuthContext.onAuthStateChange event:",
         event,
@@ -107,12 +109,15 @@ export function AuthProvider({ children }) {
             if (error) throw error;
 
             if (profile) setUserData(profile);
+            // Igual que en la inicialización: si no hay perfil en la tabla,
+            // no asignamos un rol por defecto.
             else
               setUserData({
                 id: currentUser.id,
                 email: currentUser.email,
                 name: currentUser.user_metadata?.name ?? null,
-                role: "reportero",
+                role: null,
+                profileMissing: true,
                 created_at: new Date().toISOString(),
               });
           } catch (err) {
@@ -165,7 +170,10 @@ export function AuthProvider({ children }) {
     userData,
     loading,
     setUserData,
-    logout, // <-- Añadimos la función de logout al contexto
+    // Exponer setUser para que componentes puedan sincronizar el estado de
+    // autenticación inmediatamente después de operaciones de login/registro.
+    setUser,
+    logout,
     authError,
     setAuthError,
   };

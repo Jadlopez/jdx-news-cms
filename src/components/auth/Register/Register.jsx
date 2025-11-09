@@ -1,143 +1,128 @@
 // src/components/auth/Register/Register.jsx
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef } from "react";
 import { useNavigate, Link, useLocation } from "react-router-dom";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import * as z from "zod";
+import toast from "react-hot-toast";
+
 import {
   registerUser,
   signInWithGoogle,
-  getUserData,
   saveUserData,
 } from "../../../services/authService";
 import { useAuth } from "../../../contexts/AuthContext";
 import "./Register.css";
 
-export default function Register() {
-  const { setUserData } = useAuth() ?? {};
-  const [form, setForm] = useState({ name: "", email: "", password: "" });
-  const [error, setError] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [loadingGoogle, setLoadingGoogle] = useState(false);
+const schema = z.object({
+  name: z.string().min(1, "El nombre es obligatorio."),
+  email: z
+    .string()
+    .min(1, "El correo es requerido.")
+    .email("Ingresa un correo válido."),
+  password: z
+    .string()
+    .min(6, "La contraseña debe tener al menos 6 caracteres.")
+    .optional(),
+});
 
+export default function Register() {
+  const { setUserData, setUser } = useAuth() ?? {};
   const navigate = useNavigate();
   const location = useLocation();
-  // Si venimos desde Login+Google sin perfil, Login puede redirigir a /register
-  // con location.state.providerUser = { uid, email, displayName, photoURL }
   const providerUser = location.state?.providerUser ?? null;
   const redirectTo = location.state?.from ?? "/dashboard/reportero";
 
   const isMounted = useRef(true);
-  useEffect(
-    () => () => {
-      isMounted.current = false;
-    },
-    []
-  );
+  useEffect(() => () => (isMounted.current = false), []);
 
-  // Si hay providerUser pre-llenamos nombre/email
+  const {
+    register,
+    handleSubmit,
+    setValue,
+    formState: { errors, isSubmitting },
+  } = useForm({
+    resolver: zodResolver(schema),
+    defaultValues: {
+      name: providerUser?.displayName ?? "",
+      email: providerUser?.email ?? "",
+      password: "",
+    },
+  });
+
   useEffect(() => {
     if (providerUser) {
-      setForm((f) => ({
-        ...f,
-        name: providerUser.displayName ?? f.name,
-        email: providerUser.email ?? f.email,
-      }));
+      setValue("name", providerUser.displayName ?? "");
+      setValue("email", providerUser.email ?? "");
     }
-  }, [providerUser]);
-
-  const emailValid = (email) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+  }, [providerUser, setValue]);
 
   const friendlyError = (err) => {
     const msg = (err && (err.code || err.message)) || String(err || "");
-
-    // Supabase error codes
-    if (msg.includes("User already registered")) {
-      return "El correo ya está registrado. Intenta iniciar sesión o usa otro correo.";
-    }
-    if (msg.includes("Invalid email")) {
-      return "Correo inválido.";
-    }
-    if (msg.includes("Password should be at least 6 characters")) {
+    if (/email-already-in-use/i.test(msg))
+      return "El correo ya está registrado. Intenta iniciar sesión.";
+    if (/invalid-email/i.test(msg)) return "Correo inválido.";
+    if (/weak-password/i.test(msg))
       return "La contraseña es débil. Usa al menos 6 caracteres.";
-    }
-    if (msg.includes("Database error saving new user")) {
-      return "Error al crear el perfil. Verifica que el correo sea válido y no esté en uso.";
-    }
     return err?.message ?? "Error al crear la cuenta. Intenta de nuevo.";
   };
 
-  // Flow when user submits the form.
-  // Two cases:
-  // 1) providerUser exists (OAuth completed but no profile in DB): create profile in Firestore only
-  // 2) normal email/password registration -> registerUser (creates auth user + profile in our service)
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (loading || loadingGoogle) return;
-    setError("");
+  const onSubmit = async (values) => {
+    if (!isMounted.current) return;
+    toast.dismiss();
+    console.log("Ejecutando registro con valores:", values);
+    try {
+      const t = toast.loading(
+        providerUser ? "Finalizando registro..." : "Creando cuenta..."
+      );
 
-    if (!form.name.trim()) {
-      setError("El nombre es obligatorio");
-      return;
-    }
-    if (!emailValid(form.email)) {
-      setError("Ingresa un correo válido");
-      return;
-    }
-
-    // Case: completing profile after Google sign-in (providerUser provided)
-    const providerUid = providerUser?.uid ?? providerUser?.id ?? null;
-    if (providerUid) {
-      setLoading(true);
-      try {
-        const uid = providerUid;
-        // Check if profile already exists
+      // If providerUser exists, only create profile in DB if missing
+      if (providerUser?.uid || providerUser?.id) {
+        const uid = providerUser.uid ?? providerUser.id;
         let profile = null;
         try {
           profile = await getUserData(uid);
-        } catch (dbCheckErr) {
-          console.error("getUserData (complete profile) error:", dbCheckErr);
+        } catch (dbErr) {
+          console.error("getUserData error:", dbErr);
         }
-
         if (!profile) {
           const payload = {
             id: uid,
-            name: form.name.trim(),
-            email: form.email.trim(),
+            name: values.name.trim(),
+            email: values.email.trim(),
             photoURL: providerUser.photoURL ?? null,
             role: "reportero",
             provider: "google",
-            createdAt: new Date().toISOString(),
+            created_at: new Date().toISOString(),
           };
           await saveUserData(uid, payload);
           profile = payload;
         }
-
         if (typeof setUserData === "function") setUserData(profile);
+        toast.success("Registro completado", { id: t });
         navigate(redirectTo, { replace: true });
-      } catch (err) {
-        console.error("Complete profile error:", err);
-        if (isMounted.current) setError(friendlyError(err));
-      } finally {
-        if (isMounted.current) setLoading(false);
+        return;
       }
-      return;
-    }
 
-    // Normal email/password registration
-    if (!form.password || form.password.length < 6) {
-      setError("La contraseña debe tener al menos 6 caracteres");
-      return;
-    }
+      // Normal email/password registration
+      if (!values.password || values.password.length < 6) {
+        toast.error("La contraseña debe tener al menos 6 caracteres.");
+        return;
+      }
 
-    setLoading(true);
-    try {
+      const t2 = toast.loading("Creando cuenta...");
       const createdUser = await registerUser(
-        form.email.trim(),
-        form.password,
-        form.name.trim()
+        values.email.trim(),
+        values.password,
+        values.name.trim()
       );
       const uid =
-        createdUser?.id ?? (createdUser?.user && createdUser.user.id) ?? null;
+        createdUser?.id ??
+        createdUser?.user?.id ??
+        createdUser?.uid ??
+        createdUser?.user?.uid ??
+        null;
 
-      // Try read profile (registerUser already writes a doc in our service, but check)
       let profile = null;
       if (uid) {
         try {
@@ -147,20 +132,19 @@ export default function Register() {
         }
       }
 
-      // If not present, create minimal profile
       if (!profile && uid) {
         const payload = {
           id: uid,
-          name: form.name.trim(),
-          email: form.email.trim(),
+          name: values.name.trim(),
+          email: values.email.trim(),
           role: "reportero",
-          createdAt: new Date().toISOString(),
+          created_at: new Date().toISOString(),
         };
         try {
           await saveUserData(uid, payload);
           profile = payload;
         } catch (saveErr) {
-          console.error("saveUserData after register error:", saveErr);
+          console.error("saveUserData error:", saveErr);
         }
       }
 
@@ -168,71 +152,42 @@ export default function Register() {
         setUserData(
           profile ?? {
             id: uid,
-            email: form.email.trim(),
-            name: form.name.trim(),
+            email: values.email.trim(),
+            name: values.name.trim(),
           }
         );
+
+      // También sincronizar el objeto `user` en AuthContext para que
+      // PrivateRoute y otros consumidores vean inmediatamente el usuario
+      // autenticado (evitar redirecciones por timing).
+      if (typeof setUser === "function") {
+        // `createdUser` puede venir como objeto user o como { user }
+        const createdUserObj =
+          createdUser?.id ?? createdUser?.user?.id
+            ? createdUser
+            : createdUser?.user || createdUser;
+        setUser(createdUserObj);
+      }
+      toast.success("Cuenta creada", { id: t2 });
       navigate(redirectTo, { replace: true });
     } catch (err) {
       console.error("Register error:", err);
-      if (isMounted.current) setError(friendlyError(err));
-    } finally {
-      if (isMounted.current) setLoading(false);
+      toast.error(friendlyError(err));
     }
   };
 
-  // Flow when clicking "Continue with Google" in the register page
-  // This will open popup and if user signs in we ensure they have a profile in DB.
   const handleGoogleRegister = async () => {
-    if (loading || loadingGoogle) return;
-    setError("");
-    setLoadingGoogle(true);
-
+    if (!isMounted.current) return;
+    toast.dismiss();
     try {
-      const raw = await signInWithGoogle();
-      const user = (raw && (raw.user || raw)) || null;
-      const uid = user?.uid;
-      const email = user?.email;
-      const displayName = user?.displayName;
-      const photoURL = user?.photoURL;
-
-      if (!uid)
-        throw new Error("No se pudo obtener información del proveedor (uid).");
-
-      // Check if profile exists
-      let profile = null;
-      try {
-        profile = await getUserData(uid);
-      } catch (dbErr) {
-        console.error("getUserData (google) error:", dbErr);
-      }
-
-      if (!profile) {
-        const payload = {
-          uid,
-          email,
-          name: displayName ?? "",
-          photoURL: photoURL ?? null,
-          role: "reportero",
-          provider: "google",
-          createdAt: new Date().toISOString(),
-        };
-        await saveUserData(uid, payload);
-        profile = payload;
-      }
-
-      if (typeof setUserData === "function") setUserData(profile);
-      navigate(redirectTo, { replace: true });
+      const t = toast.loading("Redirigiendo a Google...");
+      await signInWithGoogle();
+      toast.success("Continúa con Google", { id: t });
     } catch (err) {
       console.error("Google register error:", err);
-      if (isMounted.current)
-        setError(err?.message ?? "Error al registrarse con Google.");
-    } finally {
-      if (isMounted.current) setLoadingGoogle(false);
+      toast.error(err?.message ?? "Error al registrarse con Google.");
     }
   };
-
-  const isBusy = loading || loadingGoogle;
 
   return (
     <div className="register-page">
@@ -252,67 +207,66 @@ export default function Register() {
           </div>
         )}
 
-        {error && (
-          <div className="register-error" role="alert" aria-live="assertive">
-            {error}
+        {errors.root && (
+          <div className="register-error" role="alert">
+            {errors.root.message}
           </div>
         )}
 
-        <form onSubmit={handleSubmit} noValidate>
+        <form
+          onSubmit={handleSubmit(async (values) => {
+            console.log("Formulario de registro enviado con valores:", values);
+            await onSubmit(values);
+          })}
+          noValidate
+        >
           <label htmlFor="name">Nombre completo</label>
           <input
             id="name"
-            name="name"
-            type="text"
-            placeholder="Nombre completo"
-            value={form.name}
-            onChange={(e) => setForm({ ...form, name: e.target.value })}
-            required
-            disabled={isBusy}
+            {...register("name")}
             className="register-input"
-            autoFocus
+            disabled={isSubmitting}
           />
+          {errors.name && (
+            <p className="text-sm text-red-600 mb-2">{errors.name.message}</p>
+          )}
 
           <label htmlFor="email">Correo electrónico</label>
           <input
             id="email"
-            name="email"
-            type="email"
-            placeholder="Correo electrónico"
-            value={form.email}
-            onChange={(e) => setForm({ ...form, email: e.target.value })}
-            required
-            disabled={isBusy}
+            {...register("email")}
             className="register-input"
+            disabled={isSubmitting}
           />
+          {errors.email && (
+            <p className="text-sm text-red-600 mb-2">{errors.email.message}</p>
+          )}
 
-          {/* Si venimos de Google, la contraseña no es necesaria / no será usada para crear cuenta OAuth.
-              Mostramos el campo sólo para registros por email/password */}
           {!providerUser && (
             <>
               <label htmlFor="password">Contraseña</label>
               <input
                 id="password"
-                name="password"
+                {...register("password")}
                 type="password"
-                placeholder="Contraseña"
-                value={form.password}
-                onChange={(e) => setForm({ ...form, password: e.target.value })}
-                required
-                disabled={isBusy}
                 className="register-input"
+                disabled={isSubmitting}
               />
+              {errors.password && (
+                <p className="text-sm text-red-600 mb-2">
+                  {errors.password.message}
+                </p>
+              )}
             </>
           )}
 
           <button
             type="submit"
             className="register-btn-primary"
-            disabled={isBusy}
-            aria-disabled={isBusy}
+            disabled={isSubmitting}
           >
-            {loading
-              ? "Creando cuenta..."
+            {isSubmitting
+              ? "Procesando..."
               : providerUser
               ? "Finalizar registro"
               : "Registrarse"}
@@ -327,8 +281,7 @@ export default function Register() {
           type="button"
           className="register-btn-google"
           onClick={handleGoogleRegister}
-          disabled={isBusy}
-          aria-label="Continuar con Google"
+          disabled={isSubmitting}
         >
           <svg
             width="18"
@@ -354,9 +307,7 @@ export default function Register() {
               d="M272 109.7c38.9-.6 76.5 14.2 104.9 40.8l78.6-78.6C408.1 24.1 344.7-.2 272 0 168.6 0 76.2 57.3 31.6 150.9l90 69.5C142.8 157 202.1 109.7 272 109.7z"
             />
           </svg>
-          <span>
-            {loadingGoogle ? "Procesando..." : "Continuar con Google"}
-          </span>
+          <span>{isSubmitting ? "Procesando..." : "Continuar con Google"}</span>
         </button>
 
         <div className="register-footer">

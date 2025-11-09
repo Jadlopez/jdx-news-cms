@@ -1,125 +1,57 @@
 // src/services/authService.js
-import { supabase } from "../supabase/client.js";
-
+import { supabase } from "../supabase/client";
 /**
  * Registra usuario y crea perfil en la base de datos
  */
 export async function registerUser(email, password, name, role = "reportero") {
-  try {
-    // Crear el usuario en auth
-    const { data: authData, error: signUpError } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        data: { name },
-      },
-    });
-
-    if (signUpError) throw signUpError;
-    if (!authData?.user) throw new Error("No se pudo crear la cuenta");
-
-    // El trigger creará el perfil automáticamente
-    return authData.user;
-  } catch (error) {
-    console.error("Error en registerUser:", error);
-    throw error;
-  }
-}
-
-/**
- * Inicia sesión con email/password
- */
-export async function loginUser(email, password) {
-  try {
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
-
-    if (error) {
-      const msg = (error?.message || "").toLowerCase();
-      // Map common supabase auth errors to friendlier messages
-      if (
-        msg.includes("invalid login") ||
-        msg.includes("invalid credentials") ||
-        msg.includes("invalid password")
-      ) {
-        throw new Error("Correo o contraseña incorrectos.");
-      }
-      if (msg.includes("user not found") || msg.includes("no user")) {
-        throw new Error("No existe una cuenta con ese correo.");
-      }
-      if (msg.includes("invalid email")) {
-        throw new Error("Correo inválido.");
-      }
-      if (msg.includes("too many requests") || msg.includes("too many")) {
-        throw new Error("Demasiados intentos fallidos. Intenta más tarde.");
-      }
-
-      // Fallback: rethrow original error
-      throw error;
-    }
-
-    return data;
-  } catch (err) {
-    // Normalize to Error with message for UI
-    console.error("loginUser error:", err);
-    if (err instanceof Error) throw err;
-    throw new Error(String(err));
-  }
-}
-
-/**
- * Inicia sesión con Google
- */
-export async function signInWithGoogle() {
-  const { data, error } = await supabase.auth.signInWithOAuth({
-    provider: "google",
+  const { data, error } = await supabase.auth.signUp({
+    email,
+    password,
+    options: {
+      data: { name, role },
+    },
   });
 
   if (error) throw error;
-  return data;
+  return data.user;
 }
 
 /**
- * Cierra sesión
- */
-export async function logoutUser() {
-  const { error } = await supabase.auth.signOut();
-  if (error) throw error;
-}
-
-/**
- * Envía correo para restablecer contraseña
- */
-export async function resetPassword(email) {
-  const { error } = await supabase.auth.resetPasswordForEmail(email);
-  if (error) throw error;
-}
-
-/**
- * Obtiene datos del usuario desde la base de datos
+ * 🔹 Obtiene el perfil de un usuario desde la tabla "users"
  */
 export async function getUserData(uid) {
   const { data, error } = await supabase
     .from("users")
     .select("*")
     .eq("id", uid)
-    .single();
+    .maybeSingle();
 
   if (error) throw error;
   return data;
 }
 
 /**
- * Guarda o actualiza datos del usuario en la base de datos
+ * 🔹 Guarda o actualiza un perfil de usuario
  */
-export async function saveUserData(uid, data) {
-  const { error } = await supabase.from("users").upsert({
-    id: uid,
-    ...data,
-    updated_at: new Date().toISOString(),
-  });
+export async function saveUserData(uid, payload) {
+  if (!uid || !payload)
+    throw new Error("Datos incompletos para guardar perfil");
 
+  const { error } = await supabase.from("users").upsert(payload);
   if (error) throw error;
+  return true;
+}
+
+/**
+ * 🔹 Autenticación con Google (OAuth)
+ */
+export async function signInWithGoogle() {
+  const { data, error } = await supabase.auth.signInWithOAuth({
+    provider: "google",
+    options: {
+      redirectTo: `${window.location.origin}/register`,
+    },
+  });
+  if (error) throw error;
+  return data;
 }

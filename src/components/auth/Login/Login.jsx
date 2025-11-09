@@ -10,22 +10,30 @@ import { useAuth } from "../../../contexts/AuthContext";
 import logo from "../../../assets/logo.png";
 import "./Login.css";
 
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import * as z from "zod";
+import toast from "react-hot-toast";
+
+const schema = z.object({
+  email: z
+    .string()
+    .min(1, "El correo es requerido.")
+    .email("Ingresa un correo válido."),
+  password: z
+    .string()
+    .min(6, "La contraseña debe tener al menos 6 caracteres."),
+  remember: z.boolean().optional(),
+});
+
 export default function Login() {
-  const { setUserData, setAuthError } = useAuth() ?? {};
+  const { setUserData, setUser } = useAuth() ?? {};
   const navigate = useNavigate();
   const location = useLocation();
-  // Si no hay ruta de origen, vamos al dashboard por defecto
   const redirectTo = location.state?.from?.pathname ?? "/dashboard";
 
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [showPassword, setShowPassword] = useState(false);
-  const [remember, setRemember] = useState(true);
-  const [error, setError] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [loadingGoogle, setLoadingGoogle] = useState(false);
-
   const isMounted = useRef(true);
+  const [showPassword, setShowPassword] = useState(false);
   useEffect(
     () => () => {
       isMounted.current = false;
@@ -33,234 +41,196 @@ export default function Login() {
     []
   );
 
+  const {
+    register,
+    handleSubmit,
+    setValue,
+    formState: { errors, isSubmitting },
+  } = useForm({
+    resolver: zodResolver(schema),
+    defaultValues: { email: "", password: "", remember: true },
+  });
+
+  useEffect(() => {
+    const providerUser = location.state?.providerUser;
+    if (providerUser?.email) setValue("email", providerUser.email);
+  }, [location.state, setValue]);
+
   const normalizeUser = (u) => {
     if (!u) return null;
-    // Supabase v2 returns objects like { user } or { data: { user } } or the user object itself.
-    // Prefer `id` (supabase user id). Fall back to `uid` for older formats.
-    if (u.id) return u;
-    if (u.user && u.user.id) return u.user;
-    if (u.user && u.user.uid) return u.user;
-    if (u.uid) return u;
+    if (u.user) return u.user;
+    if (u.data?.user) return u.data.user;
     return u;
   };
 
-  const validate = () => {
-    if (!email) return "El correo es requerido.";
-    const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!re.test(email)) return "Ingresa un correo válido.";
-    if (!password) return "La contraseña es requerida.";
-    if (password.length < 6)
-      return "La contraseña debe tener al menos 6 caracteres.";
-    return null;
-  };
-
   const friendlyError = (err) => {
-    const msg = (err && (err.code || err.message)) || String(err || "");
-    // Common credential errors
+    const msg = (err?.message || String(err || "")).toLowerCase();
     if (
-      /invalid\s*login\s*credentials/i.test(msg) ||
-      /invalid\s*credentials/i.test(msg) ||
-      /wrong-password/i.test(msg) ||
-      /auth\/wrong-password/i.test(msg)
-    ) {
+      msg.includes("wrong-password") ||
+      msg.includes("invalid login") ||
+      msg.includes("invalid credentials")
+    )
       return "Correo o contraseña incorrectos.";
-    }
-    if (/user-not-found/i.test(msg) || /auth\/user-not-found/i.test(msg)) {
+    if (msg.includes("user not found") || msg.includes("no user"))
       return "No existe una cuenta con ese correo.";
-    }
-    if (/invalid-email/i.test(msg) || /auth\/invalid-email/i.test(msg)) {
-      return "Correo inválido.";
-    }
-    if (
-      /too-many-requests/i.test(msg) ||
-      /auth\/too-many-requests/i.test(msg)
-    ) {
+    if (msg.includes("invalid email")) return "Correo inválido.";
+    if (msg.includes("too many requests") || msg.includes("too many"))
       return "Demasiados intentos fallidos. Intenta más tarde.";
-    }
-    // Si viene message legible, devolverlo (útil en desarrollo / servicios)
-    if (err && err.message) return err.message;
-    return "Error al iniciar sesión. Revisa tus datos e intenta de nuevo.";
+    if (err?.message) return err.message;
+    return "Error al iniciar sesión. Intenta nuevamente.";
   };
 
-  const handleLogin = async (e) => {
-    e.preventDefault();
-    if (loading || loadingGoogle) return;
-
-    setError("");
-    const v = validate();
-    if (v) {
-      setError(v);
-      return;
-    }
-
-    setLoading(true);
-    if (typeof setAuthError === "function") setAuthError(null);
+  const onSubmit = async (values) => {
+    if (!isMounted.current) return;
+    if (isSubmitting) return; // Evitar múltiples envíos
     try {
-      const raw = await loginUser(email.trim(), password, { remember });
+      console.log("Ejecutando login con valores:", values);
+      toast.dismiss();
+      const t = toast.loading("Iniciando sesión...");
+
+      console.log("Llamando a loginUser...");
+      const raw = await loginUser(values.email.trim(), values.password);
+      console.log("Respuesta de loginUser:", raw);
+
       const user = normalizeUser(raw);
+      // Asegurar que el AuthContext tenga el objeto `user` inmediatamente
+      // para evitar redirecciones prematuras desde PrivateRoute.
+      if (typeof setUser === "function") setUser(user);
       const uid = user?.id ?? user?.uid;
       if (!uid)
         throw new Error("No se obtuvo id del proveedor de autenticación.");
 
-      let data = null;
-      try {
-        data = await getUserData(uid);
-      } catch (dbErr) {
-        // No detenga el flujo si falla la lectura del perfil; permitimos continuar
-        console.error("getUserData error:", dbErr);
-      }
+      const data = await getUserData(uid).catch(() => null);
+      setUserData?.(data ?? { id: uid, email: user.email });
+      toast.success("Sesión iniciada", { id: t });
 
-      if (typeof setUserData === "function") {
-        try {
-          setUserData(data ?? { id: uid, email: user.email });
-        } catch (ctxErr) {
-          console.error("setUserData error:", ctxErr);
-        }
-      }
-
-      // Si ruta de origen, ir allí; si no, dirigir según rol si existe
-      if (redirectTo && redirectTo !== "/login" && redirectTo !== "/register") {
+      if (redirectTo && !["/login", "/register"].includes(redirectTo)) {
         navigate(redirectTo, { replace: true });
         return;
       }
 
-      if (data?.role === "editor")
-        navigate("/dashboard/editor", { replace: true });
-      else navigate("/dashboard/reportero", { replace: true });
+      navigate(
+        data?.role === "editor" ? "/dashboard/editor" : "/dashboard/reportero",
+        { replace: true }
+      );
     } catch (err) {
       console.error("Login error:", err);
       const friendly = friendlyError(err);
-      if (isMounted.current) setError(friendly);
-      if (typeof setAuthError === "function") setAuthError(friendly);
-    } finally {
-      if (isMounted.current) setLoading(false);
+      toast.dismiss();
+      toast.error(friendly);
     }
   };
 
   const handleGoogleSignIn = async () => {
-    if (loading || loadingGoogle) return;
-    setError("");
-    setLoadingGoogle(true);
     try {
-      const raw = await signInWithGoogle({ remember });
+      toast.dismiss();
+      const t = toast.loading("Accediendo con Google...");
+      const raw = await signInWithGoogle();
+      const url = raw?.url || raw?.data?.url;
+      if (url) {
+        window.location.href = url;
+        return;
+      }
+
       const user = normalizeUser(raw);
+      if (typeof setUser === "function") setUser(user);
       const uid = user?.id ?? user?.uid;
-      if (!uid)
-        throw new Error(
-          "No se obtuvo información del usuario desde el proveedor."
-        );
-
-      let data = null;
-      try {
-        data = await getUserData(uid);
-      } catch (dbErr) {
-        console.error("getUserData error (google):", dbErr);
-      }
-
-      if (data) {
-        if (typeof setUserData === "function") setUserData(data);
-        if (
-          redirectTo &&
-          redirectTo !== "/login" &&
-          redirectTo !== "/register"
-        ) {
-          navigate(redirectTo, { replace: true });
-          return;
-        }
-        if (data?.role === "editor")
-          navigate("/dashboard/editor", { replace: true });
-        else navigate("/dashboard/reportero", { replace: true });
-      } else {
-        // Si no existe perfil en DB, dirigir a registro con datos prellenados
-        navigate("/register", {
-          replace: true,
-          state: {
-            from: redirectTo ?? "/dashboard/reportero",
-            provider: "google",
-            providerUser: {
-              uid: uid,
-              email: user.email,
-              displayName: user.displayName,
-              photoURL: user.photoURL,
-            },
-          },
-        });
-      }
+      if (!uid) throw new Error("No se obtuvo información del proveedor.");
+      const data = await getUserData(uid).catch(() => null);
+      setUserData?.(data);
+      toast.success("Bienvenido/a", { id: t });
+      navigate(
+        data?.role === "editor" ? "/dashboard/editor" : "/dashboard/reportero",
+        { replace: true }
+      );
     } catch (err) {
       console.error("Google sign-in error:", err);
-      if (isMounted.current) setError(friendlyError(err));
-    } finally {
-      if (isMounted.current) setLoadingGoogle(false);
+      toast.dismiss();
+      toast.error(friendlyError(err));
     }
   };
 
-  const isBusy = loading || loadingGoogle;
+  const isBusy = isSubmitting;
 
   return (
-    <div className="login-page">
-      <div className="login-wrapper">
+    <div className="login-page bg-gradient-to-b from-gray-50 to-gray-100 flex items-center justify-center min-h-screen p-6">
+      <div className="login-wrapper w-full max-w-md">
         <form
           data-jdx-login
-          onSubmit={handleLogin}
-          className="login-card"
-          aria-describedby="form-error"
-          noValidate
+          onSubmit={handleSubmit((values) => {
+            console.log("Formulario de login enviado con valores:", values);
+            return onSubmit(values).catch((error) => {
+              console.error("Error en el envío del formulario:", error);
+              throw error; // Re-lanzar el error para que react-hook-form lo maneje
+            });
+          })}
+          className="login-card bg-white rounded-2xl shadow-lg p-6 relative overflow-hidden"
           aria-busy={isBusy}
         >
           {isBusy && (
-            <div className="login-overlay" aria-hidden="true">
-              <div className="spinner" aria-hidden="true" />
+            <div className="login-overlay absolute inset-0 bg-white/75 flex items-center justify-center z-40">
+              <div className="spinner" />
             </div>
           )}
 
-          <div className="login-header">
-            <img src={logo} alt="JDX News" className="login-logo" />
+          <div className="login-header flex items-center gap-3 mb-4">
+            <img
+              src={logo}
+              alt="JDX News"
+              className="login-logo w-12 h-12 object-contain rounded-lg"
+            />
             <div>
-              <h1 className="login-title">Inicia sesión</h1>
-              <p className="login-sub">Accede al panel de administración</p>
+              <h1 className="login-title text-xl font-bold text-gray-900">
+                Inicia sesión
+              </h1>
+              <p className="login-sub text-gray-500 text-sm">
+                Accede al panel de administración
+              </p>
             </div>
           </div>
 
-          {error && (
+          {/* mostrar mensajes de validación del formulario */}
+          {errors.root && (
             <div
-              id="form-error"
               role="alert"
-              className="login-error"
-              aria-live="polite"
+              className="login-error bg-red-50 border border-red-200 text-red-700 rounded-md p-3 mb-3 text-sm"
             >
-              {error}
+              {errors.root.message}
             </div>
           )}
 
-          <label htmlFor="email">Correo electrónico</label>
+          <label
+            htmlFor="email"
+            className="block font-semibold text-gray-700 mb-1"
+          >
+            Correo electrónico
+          </label>
           <input
             id="email"
-            name="email"
             type="email"
-            inputMode="email"
-            autoComplete="email"
-            className="login-input"
             placeholder="tu@ejemplo.com"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
             disabled={isBusy}
-            required
-            autoFocus
+            className="login-input w-full border border-gray-300 rounded-md p-2.5 focus:ring-2 focus:ring-teal-400 outline-none mb-3"
+            {...register("email")}
           />
+          {errors.email && (
+            <p className="text-sm text-red-600 mb-2">{errors.email.message}</p>
+          )}
 
-          <label htmlFor="password">Contraseña</label>
-          <div className="login-password-row">
+          <label
+            htmlFor="password"
+            className="block font-semibold text-gray-700 mb-1"
+          >
+            Contraseña
+          </label>
+          <div className="login-password-row flex items-center gap-2 mb-4">
             <input
               id="password"
-              name="password"
               type={showPassword ? "text" : "password"}
-              autoComplete="current-password"
-              className="login-input login-input-password"
               placeholder="••••••••"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
               disabled={isBusy}
-              required
+              className="login-input-password flex-1 border border-gray-300 rounded-md p-2.5 focus:ring-2 focus:ring-teal-400 outline-none"
+              {...register("password")}
             />
             <button
               type="button"
@@ -275,43 +245,48 @@ export default function Login() {
               {showPassword ? "👁️‍🗨️" : "👁️"}
             </button>
           </div>
+          {errors.password && (
+            <p className="text-sm text-red-600 mb-2">
+              {errors.password.message}
+            </p>
+          )}
 
-          <div className="login-row">
-            <label className="checkbox-label">
+          <div className="login-row flex justify-between items-center mb-4 text-sm text-gray-600">
+            <label className="checkbox-label inline-flex items-center gap-2 cursor-pointer">
               <input
                 type="checkbox"
-                checked={remember}
-                onChange={(e) => setRemember(e.target.checked)}
                 disabled={isBusy}
+                {...register("remember")}
               />
               <span>Recuérdame</span>
             </label>
 
-            <Link to="/forgot-password" className="link-muted">
+            <Link to="/forgot-password" className="link-muted hover:underline">
               ¿Olvidaste tu contraseña?
             </Link>
           </div>
 
           <button
             type="submit"
-            className="btn-primary"
             disabled={isBusy}
-            aria-disabled={isBusy}
-            aria-live="polite"
+            className="btn-primary w-full bg-teal-500 hover:bg-teal-600 text-white font-semibold rounded-md py-2.5 transition"
           >
-            {loading ? "Ingresando..." : "Entrar"}
+            {isBusy ? "Ingresando..." : "Entrar"}
           </button>
 
-          <div className="login-divider" aria-hidden="true">
-            <div className="login-divider-content">o</div>
+          <div className="login-divider flex items-center gap-3 my-4">
+            <div className="flex-1 h-px bg-gray-200"></div>
+            <span className="login-divider-content text-gray-400 text-sm">
+              o
+            </span>
+            <div className="flex-1 h-px bg-gray-200"></div>
           </div>
 
           <button
             type="button"
-            className="btn-google"
             onClick={handleGoogleSignIn}
             disabled={isBusy}
-            aria-label="Continuar con Google"
+            className="btn-google w-full border border-gray-300 bg-white rounded-md py-2.5 flex items-center justify-center gap-2 text-gray-800 font-medium hover:bg-gray-50 transition"
           >
             <svg
               width="18"
@@ -339,9 +314,12 @@ export default function Login() {
             <span>Continuar con Google</span>
           </button>
 
-          <div className="login-footer">
+          <div className="login-footer text-center text-gray-600 text-sm mt-4">
             ¿No tienes cuenta?{" "}
-            <Link to="/register" className="link-strong">
+            <Link
+              to="/register"
+              className="link-strong text-teal-600 font-semibold hover:underline"
+            >
               Regístrate
             </Link>
           </div>

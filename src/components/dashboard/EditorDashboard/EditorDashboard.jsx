@@ -1,4 +1,4 @@
-//src/components/dashboard/EditorDashboard/EditorDashboard.jsx
+// src/components/dashboard/EditorDashboard/EditorDashboard.jsx
 import React, { useEffect, useState, useCallback } from "react";
 import {
   getAllNews,
@@ -6,28 +6,17 @@ import {
   deleteNews,
 } from "../../../services/newsService";
 import NewsList from "../../news/NewsList/NewsList";
+import { useAuth } from "../../../contexts/AuthContext";
 import "./EditorDashboard.css";
 
-/**
- * EditorDashboard
- * - Listado de noticias (filtro por estado)
- * - Acciones del editor: Publicar, Desactivar, Devolver a Edición
- *
- * Requisitos previos en services/newsService.js:
- * - getAllNews(status) -> devuelve array
- * - updateNewsStatus(id, newStatus)
- * - deleteNews(id) (opcional)
- *
- * Nota: Para una experiencia más robusta, considera integrar react-query
- * para cacheo y manejo de mutaciones.
- */
 export default function EditorDashboard() {
+  const { userData } = useAuth();
   const [news, setNews] = useState([]);
-  const [filter, setFilter] = useState("Todos"); // Todos | Edición | Terminado | Publicado | Desactivado
+  const [filter, setFilter] = useState("Todos");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [search, setSearch] = useState("");
-  const [refreshKey, setRefreshKey] = useState(0); // para forzar recarga
+  const [refreshKey, setRefreshKey] = useState(0);
 
   const loadNews = useCallback(async () => {
     setLoading(true);
@@ -47,16 +36,13 @@ export default function EditorDashboard() {
     loadNews();
   }, [loadNews, refreshKey]);
 
-  const handleRefresh = () => {
-    setRefreshKey((k) => k + 1);
-  };
+  const handleRefresh = () => setRefreshKey((k) => k + 1);
 
   const handleChangeStatus = async (id, newStatus) => {
     const ok = window.confirm(`¿Confirmas cambiar el estado a "${newStatus}"?`);
     if (!ok) return;
     try {
       await updateNewsStatus(id, newStatus);
-      // refrescar list
       handleRefresh();
     } catch (err) {
       console.error("Error actualizando estado:", err);
@@ -64,13 +50,13 @@ export default function EditorDashboard() {
     }
   };
 
-  const handleDelete = async (id) => {
+  const handleDelete = async (id, imagePath) => {
     const ok = window.confirm(
       "¿Eliminar la noticia? Esta acción no se puede deshacer."
     );
     if (!ok) return;
     try {
-      await deleteNews(id);
+      await deleteNews(id, imagePath);
       handleRefresh();
     } catch (err) {
       console.error("Error eliminando noticia:", err);
@@ -78,12 +64,11 @@ export default function EditorDashboard() {
     }
   };
 
-  // Filtrado local simple (por título o subtítulo)
   const filteredNews = news.filter((n) => {
     if (!search) return true;
     const q = search.trim().toLowerCase();
-    const title = (n.titulo || n.title || "").toString().toLowerCase();
-    const subtitle = (n.subtitulo || n.subtitle || "").toString().toLowerCase();
+    const title = (n.title || n.titulo || "").toString().toLowerCase();
+    const subtitle = (n.subtitle || n.subtitulo || "").toString().toLowerCase();
     return title.includes(q) || subtitle.includes(q);
   });
 
@@ -150,12 +135,8 @@ export default function EditorDashboard() {
             <small>{filteredNews.length} resultado(s)</small>
           </div>
 
-          {/* Pasamos múltiples props (compatibilidad con distintas versiones de NewsList) */}
           <NewsList
             news={filteredNews}
-            data={filteredNews}
-            items={filteredNews}
-            onEdit={() => {}}
             onReload={handleRefresh}
             onChangeStatus={handleChangeStatus}
             onDelete={handleDelete}
