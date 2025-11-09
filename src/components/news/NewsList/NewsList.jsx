@@ -3,7 +3,12 @@ import React, { useMemo, useState } from "react";
 import { deleteNews, updateNewsStatus } from "../../../services/newsService";
 import { useAuth } from "../../../contexts/AuthContext";
 
-export default function NewsList({ news = [], onEdit, refresh, pageSize = 6 }) {
+export default function NewsList({
+  news = [],
+  onEdit,
+  onReload,
+  pageSize = 6,
+}) {
   const { userData } = useAuth();
   const [q, setQ] = useState("");
   const [page, setPage] = useState(1);
@@ -29,12 +34,12 @@ export default function NewsList({ news = [], onEdit, refresh, pageSize = 6 }) {
   async function handleDelete(id, imagePath) {
     if (!confirm("Eliminar noticia?")) return;
     await deleteNews(id, imagePath);
-    refresh();
+    if (onReload) onReload();
   }
 
   async function handleChangeStatus(id, newStatus) {
     await updateNewsStatus(id, newStatus);
-    refresh();
+    if (onReload) onReload();
   }
 
   const isEditor = userData?.role === "editor";

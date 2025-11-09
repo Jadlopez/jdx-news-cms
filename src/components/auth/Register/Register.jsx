@@ -83,10 +83,11 @@ export default function Register() {
     }
 
     // Case: completing profile after Google sign-in (providerUser provided)
-    if (providerUser?.uid) {
+    const providerUid = providerUser?.uid ?? providerUser?.id ?? null;
+    if (providerUid) {
       setLoading(true);
       try {
-        const uid = providerUser.uid;
+        const uid = providerUid;
         // Check if profile already exists
         let profile = null;
         try {
@@ -97,7 +98,7 @@ export default function Register() {
 
         if (!profile) {
           const payload = {
-            uid,
+            id: uid,
             name: form.name.trim(),
             email: form.email.trim(),
             photoURL: providerUser.photoURL ?? null,
@@ -134,7 +135,7 @@ export default function Register() {
         form.name.trim()
       );
       const uid =
-        createdUser?.uid ?? (createdUser?.user && createdUser.user.uid) ?? null;
+        createdUser?.id ?? (createdUser?.user && createdUser.user.id) ?? null;
 
       // Try read profile (registerUser already writes a doc in our service, but check)
       let profile = null;
@@ -149,7 +150,7 @@ export default function Register() {
       // If not present, create minimal profile
       if (!profile && uid) {
         const payload = {
-          uid,
+          id: uid,
           name: form.name.trim(),
           email: form.email.trim(),
           role: "reportero",
@@ -165,7 +166,11 @@ export default function Register() {
 
       if (typeof setUserData === "function")
         setUserData(
-          profile ?? { uid, email: form.email.trim(), name: form.name.trim() }
+          profile ?? {
+            id: uid,
+            email: form.email.trim(),
+            name: form.name.trim(),
+          }
         );
       navigate(redirectTo, { replace: true });
     } catch (err) {

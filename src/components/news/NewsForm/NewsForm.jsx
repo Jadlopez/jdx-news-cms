@@ -82,7 +82,8 @@ const NewsForm = ({ existing, onSaved }) => {
         status,
         imageUrl,
         imagePath,
-        author: user.email,
+        // use authenticated user id as author when available
+        author: user?.id || user?.uid || user?.email,
         updatedAt: new Date().toISOString(),
       };
 

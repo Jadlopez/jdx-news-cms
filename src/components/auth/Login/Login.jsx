@@ -1,13 +1,17 @@
 // src/components/auth/Login/Login.jsx
 import React, { useEffect, useRef, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { loginUser, getUserData, signInWithGoogle } from "../../../services/authService";
+import {
+  loginUser,
+  getUserData,
+  signInWithGoogle,
+} from "../../../services/authService";
 import { useAuth } from "../../../contexts/AuthContext";
 import logo from "../../../assets/logo.png";
 import "./Login.css";
 
 export default function Login() {
-  const { setUserData } = useAuth() ?? {};
+  const { setUserData, setAuthError } = useAuth() ?? {};
   const navigate = useNavigate();
   const location = useLocation();
   // Si no hay ruta de origen, vamos al dashboard por defecto
@@ -22,12 +26,21 @@ export default function Login() {
   const [loadingGoogle, setLoadingGoogle] = useState(false);
 
   const isMounted = useRef(true);
-  useEffect(() => () => { isMounted.current = false; }, []);
+  useEffect(
+    () => () => {
+      isMounted.current = false;
+    },
+    []
+  );
 
   const normalizeUser = (u) => {
     if (!u) return null;
-    if (u.uid) return u;
+    // Supabase v2 returns objects like { user } or { data: { user } } or the user object itself.
+    // Prefer `id` (supabase user id). Fall back to `uid` for older formats.
+    if (u.id) return u;
+    if (u.user && u.user.id) return u.user;
     if (u.user && u.user.uid) return u.user;
+    if (u.uid) return u;
     return u;
   };
 
@@ -36,13 +49,20 @@ export default function Login() {
     const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!re.test(email)) return "Ingresa un correo válido.";
     if (!password) return "La contraseña es requerida.";
-    if (password.length < 6) return "La contraseña debe tener al menos 6 caracteres.";
+    if (password.length < 6)
+      return "La contraseña debe tener al menos 6 caracteres.";
     return null;
   };
 
   const friendlyError = (err) => {
     const msg = (err && (err.code || err.message)) || String(err || "");
-    if (/wrong-password/i.test(msg) || /auth\/wrong-password/i.test(msg)) {
+    // Common credential errors
+    if (
+      /invalid\s*login\s*credentials/i.test(msg) ||
+      /invalid\s*credentials/i.test(msg) ||
+      /wrong-password/i.test(msg) ||
+      /auth\/wrong-password/i.test(msg)
+    ) {
       return "Correo o contraseña incorrectos.";
     }
     if (/user-not-found/i.test(msg) || /auth\/user-not-found/i.test(msg)) {
@@ -51,7 +71,10 @@ export default function Login() {
     if (/invalid-email/i.test(msg) || /auth\/invalid-email/i.test(msg)) {
       return "Correo inválido.";
     }
-    if (/too-many-requests/i.test(msg) || /auth\/too-many-requests/i.test(msg)) {
+    if (
+      /too-many-requests/i.test(msg) ||
+      /auth\/too-many-requests/i.test(msg)
+    ) {
       return "Demasiados intentos fallidos. Intenta más tarde.";
     }
     // Si viene message legible, devolverlo (útil en desarrollo / servicios)
@@ -71,14 +94,17 @@ export default function Login() {
     }
 
     setLoading(true);
+    if (typeof setAuthError === "function") setAuthError(null);
     try {
       const raw = await loginUser(email.trim(), password, { remember });
       const user = normalizeUser(raw);
-      if (!user?.uid) throw new Error("No se obtuvo uid del proveedor de autenticación.");
+      const uid = user?.id ?? user?.uid;
+      if (!uid)
+        throw new Error("No se obtuvo id del proveedor de autenticación.");
 
       let data = null;
       try {
-        data = await getUserData(user.uid);
+        data = await getUserData(uid);
       } catch (dbErr) {
         // No detenga el flujo si falla la lectura del perfil; permitimos continuar
         console.error("getUserData error:", dbErr);
@@ -86,7 +112,7 @@ export default function Login() {
 
       if (typeof setUserData === "function") {
         try {
-          setUserData(data ?? { uid: user.uid, email: user.email });
+          setUserData(data ?? { id: uid, email: user.email });
         } catch (ctxErr) {
           console.error("setUserData error:", ctxErr);
         }
@@ -98,11 +124,14 @@ export default function Login() {
         return;
       }
 
-      if (data?.role === "editor") navigate("/dashboard/editor", { replace: true });
+      if (data?.role === "editor")
+        navigate("/dashboard/editor", { replace: true });
       else navigate("/dashboard/reportero", { replace: true });
     } catch (err) {
       console.error("Login error:", err);
-      if (isMounted.current) setError(friendlyError(err));
+      const friendly = friendlyError(err);
+      if (isMounted.current) setError(friendly);
+      if (typeof setAuthError === "function") setAuthError(friendly);
     } finally {
       if (isMounted.current) setLoading(false);
     }
@@ -115,15 +144,31 @@ export default function Login() {
     try {
       const raw = await signInWithGoogle({ remember });
       const user = normalizeUser(raw);
-      if (!user?.uid) throw new Error("No se obtuvo información del usuario desde el proveedor.");
+      const uid = user?.id ?? user?.uid;
+      if (!uid)
+        throw new Error(
+          "No se obtuvo información del usuario desde el proveedor."
+        );
 
       let data = null;
-      try { data = await getUserData(user.uid); } catch (dbErr) { console.error("getUserData error (google):", dbErr); }
+      try {
+        data = await getUserData(uid);
+      } catch (dbErr) {
+        console.error("getUserData error (google):", dbErr);
+      }
 
       if (data) {
         if (typeof setUserData === "function") setUserData(data);
-        if (redirectTo && redirectTo !== "/login" && redirectTo !== "/register") { navigate(redirectTo, { replace: true }); return; }
-        if (data?.role === "editor") navigate("/dashboard/editor", { replace: true });
+        if (
+          redirectTo &&
+          redirectTo !== "/login" &&
+          redirectTo !== "/register"
+        ) {
+          navigate(redirectTo, { replace: true });
+          return;
+        }
+        if (data?.role === "editor")
+          navigate("/dashboard/editor", { replace: true });
         else navigate("/dashboard/reportero", { replace: true });
       } else {
         // Si no existe perfil en DB, dirigir a registro con datos prellenados
@@ -133,7 +178,7 @@ export default function Login() {
             from: redirectTo ?? "/dashboard/reportero",
             provider: "google",
             providerUser: {
-              uid: user.uid,
+              uid: uid,
               email: user.email,
               displayName: user.displayName,
               photoURL: user.photoURL,
@@ -177,7 +222,12 @@ export default function Login() {
           </div>
 
           {error && (
-            <div id="form-error" role="alert" className="login-error" aria-live="polite">
+            <div
+              id="form-error"
+              role="alert"
+              className="login-error"
+              aria-live="polite"
+            >
               {error}
             </div>
           )}
@@ -217,7 +267,9 @@ export default function Login() {
               className="btn-icon"
               onClick={() => setShowPassword((s) => !s)}
               aria-pressed={showPassword}
-              aria-label={showPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
+              aria-label={
+                showPassword ? "Ocultar contraseña" : "Mostrar contraseña"
+              }
               disabled={isBusy}
             >
               {showPassword ? "👁️‍🗨️" : "👁️"}
@@ -235,7 +287,9 @@ export default function Login() {
               <span>Recuérdame</span>
             </label>
 
-            <Link to="/forgot-password" className="link-muted">¿Olvidaste tu contraseña?</Link>
+            <Link to="/forgot-password" className="link-muted">
+              ¿Olvidaste tu contraseña?
+            </Link>
           </div>
 
           <button
@@ -259,17 +313,37 @@ export default function Login() {
             disabled={isBusy}
             aria-label="Continuar con Google"
           >
-            <svg width="18" height="18" viewBox="0 0 533.5 544.3" aria-hidden="true">
-              <path fill="#4285f4" d="M533.5 278.4c0-17.7-1.6-35.4-4.8-52.5H272v99.4h146.9c-6.4 34.9-26.1 64.4-55.6 84.2v69.9h89.6c52.4-48.3 82.6-119.5 82.6-200.9z"/>
-              <path fill="#34a853" d="M272 544.3c73.6 0 135.5-24.4 180.7-66.5l-89.6-69.9c-24.9 16.7-56.6 26.5-91.1 26.5-69.9 0-129.2-47.2-150.4-110.5H31.6v69.5C76.2 487 168.6 544.3 272 544.3z"/>
-              <path fill="#fbbc04" d="M121.6 327.9c-11.7-34.9-11.7-72.6 0-107.5V150.9H31.6c-39.3 78.3-39.3 171.6 0 249.9l90-72.9z"/>
-              <path fill="#ea4335" d="M272 109.7c38.9-.6 76.5 14.2 104.9 40.8l78.6-78.6C408.1 24.1 344.7-.2 272 0 168.6 0 76.2 57.3 31.6 150.9l90 69.5C142.8 157 202.1 109.7 272 109.7z"/>
+            <svg
+              width="18"
+              height="18"
+              viewBox="0 0 533.5 544.3"
+              aria-hidden="true"
+            >
+              <path
+                fill="#4285f4"
+                d="M533.5 278.4c0-17.7-1.6-35.4-4.8-52.5H272v99.4h146.9c-6.4 34.9-26.1 64.4-55.6 84.2v69.9h89.6c52.4-48.3 82.6-119.5 82.6-200.9z"
+              />
+              <path
+                fill="#34a853"
+                d="M272 544.3c73.6 0 135.5-24.4 180.7-66.5l-89.6-69.9c-24.9 16.7-56.6 26.5-91.1 26.5-69.9 0-129.2-47.2-150.4-110.5H31.6v69.5C76.2 487 168.6 544.3 272 544.3z"
+              />
+              <path
+                fill="#fbbc04"
+                d="M121.6 327.9c-11.7-34.9-11.7-72.6 0-107.5V150.9H31.6c-39.3 78.3-39.3 171.6 0 249.9l90-72.9z"
+              />
+              <path
+                fill="#ea4335"
+                d="M272 109.7c38.9-.6 76.5 14.2 104.9 40.8l78.6-78.6C408.1 24.1 344.7-.2 272 0 168.6 0 76.2 57.3 31.6 150.9l90 69.5C142.8 157 202.1 109.7 272 109.7z"
+              />
             </svg>
             <span>Continuar con Google</span>
           </button>
 
           <div className="login-footer">
-            ¿No tienes cuenta? <Link to="/register" className="link-strong">Regístrate</Link>
+            ¿No tienes cuenta?{" "}
+            <Link to="/register" className="link-strong">
+              Regístrate
+            </Link>
           </div>
         </form>
       </div>

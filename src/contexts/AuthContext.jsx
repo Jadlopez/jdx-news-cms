@@ -24,6 +24,7 @@ export function useAuth() {
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [userData, setUserData] = useState(null);
+  const [authError, setAuthError] = useState(null);
   const [loading, setLoading] = useState(true);
   const mountedRef = useRef(true);
 
@@ -31,47 +32,96 @@ export function AuthProvider({ children }) {
     mountedRef.current = true;
     setLoading(true);
 
-    // Subscribe to auth changes
+    // First, try to get current user synchronously so page refreshes have immediate state
+    (async () => {
+      try {
+        const { data: userDataResp, error: userErr } =
+          await supabase.auth.getUser();
+        if (userErr) console.debug("AuthContext.getUser error:", userErr);
+        const currentUser = userDataResp?.user ?? null;
+        console.debug("AuthContext.getUser - currentUser:", currentUser);
+        if (!mountedRef.current) return;
+        setUser(currentUser);
+        setUserData(null);
+
+        if (currentUser) {
+          try {
+            const { data: profile, error } = await supabase
+              .from("users")
+              .select("*")
+              .eq("id", currentUser.id)
+              .single();
+
+            if (!mountedRef.current) return;
+
+            if (error) throw error;
+
+            if (profile) {
+              setUserData(profile);
+            } else {
+              setUserData({
+                id: currentUser.id,
+                email: currentUser.email,
+                name: currentUser.user_metadata?.name ?? null,
+                role: "reportero",
+                created_at: new Date().toISOString(),
+              });
+            }
+          } catch (err) {
+            console.error("Error fetching user data:", err);
+          }
+        }
+      } catch (err) {
+        console.error("AuthContext init getUser failed:", err);
+      } finally {
+        if (mountedRef.current) setLoading(false);
+      }
+    })();
+
+    // Subscribe to auth changes to react to sign in / sign out events
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange(async (event, session) => {
+    } = supabase.auth.onAuthStateChange((event, session) => {
+      console.debug(
+        "AuthContext.onAuthStateChange event:",
+        event,
+        session?.user ?? null
+      );
       if (!mountedRef.current) return;
 
-      const currentUser = session?.user;
+      const currentUser = session?.user ?? null;
       setUser(currentUser);
       setUserData(null);
 
-      if (currentUser) {
-        try {
-          const { data: profile, error } = await supabase
-            .from("users")
-            .select("*")
-            .eq("id", currentUser.id)
-            .single();
+      (async () => {
+        if (currentUser) {
+          try {
+            const { data: profile, error } = await supabase
+              .from("users")
+              .select("*")
+              .eq("id", currentUser.id)
+              .single();
 
-          if (!mountedRef.current) return;
+            if (!mountedRef.current) return;
 
-          if (error) throw error;
+            if (error) throw error;
 
-          if (profile) {
-            setUserData(profile);
-          } else {
-            // Si no existe perfil en la base de datos, creamos uno por defecto
-            setUserData({
-              id: currentUser.id,
-              email: currentUser.email,
-              name: currentUser.user_metadata?.name ?? null,
-              role: "reportero",
-              created_at: new Date().toISOString(),
-            });
+            if (profile) setUserData(profile);
+            else
+              setUserData({
+                id: currentUser.id,
+                email: currentUser.email,
+                name: currentUser.user_metadata?.name ?? null,
+                role: "reportero",
+                created_at: new Date().toISOString(),
+              });
+          } catch (err) {
+            console.error("Error fetching user data (onAuthStateChange):", err);
           }
-        } catch (err) {
-          console.error("Error fetching user data:", err);
-          // Mantener userData en null para que otros componentes reaccionen correctamente
         }
-      }
 
-      if (mountedRef.current) setLoading(false);
+        if (mountedRef.current) setLoading(false);
+      })();
     });
 
     return () => {
@@ -82,10 +132,28 @@ export function AuthProvider({ children }) {
 
   const logout = async () => {
     try {
+      // Debug: log user before sign out
+      try {
+        const { data: before } = await supabase.auth.getUser();
+        console.debug("AuthContext.logout - before user:", before);
+      } catch (e) {
+        console.debug("AuthContext.logout - getUser before failed:", e);
+      }
+
       const { error } = await supabase.auth.signOut();
       if (error) throw error;
+
+      // Debug: log user after sign out
+      try {
+        const { data: after } = await supabase.auth.getUser();
+        console.debug("AuthContext.logout - after user:", after);
+      } catch (e) {
+        console.debug("AuthContext.logout - getUser after failed:", e);
+      }
+
       setUser(null);
       setUserData(null);
+      setAuthError(null);
     } catch (error) {
       console.error("Error en logout:", error);
       throw error;
@@ -98,6 +166,8 @@ export function AuthProvider({ children }) {
     loading,
     setUserData,
     logout, // <-- Añadimos la función de logout al contexto
+    authError,
+    setAuthError,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

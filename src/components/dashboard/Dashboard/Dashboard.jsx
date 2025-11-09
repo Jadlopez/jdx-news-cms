@@ -27,28 +27,49 @@ export default function Dashboard() {
     }
   };
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => {
+    load();
+  }, []);
 
   const getStatus = (n) => n?.estado ?? n?.status ?? "Edición";
-  const counts = allNews.reduce((acc, n) => {
-    const s = getStatus(n);
-    acc.total += 1;
-    acc[s] = (acc[s] || 0) + 1;
-    return acc;
-  }, { total: 0 });
+  const counts = allNews.reduce(
+    (acc, n) => {
+      const s = getStatus(n);
+      acc.total += 1;
+      acc[s] = (acc[s] || 0) + 1;
+      return acc;
+    },
+    { total: 0 }
+  );
 
   const goToRoleDashboard = () => {
-    if (userData?.role === "editor") navigate("/dashboard/editor");
-    else navigate("/dashboard/reportero");
+    if (!userData?.role) {
+      setError(
+        "No se pudo determinar tu rol. Por favor, cierra sesión y vuelve a intentar."
+      );
+      return;
+    }
+    if (userData.role === "editor") {
+      navigate("/dashboard/editor");
+    } else if (userData.role === "reportero") {
+      navigate("/dashboard/reportero");
+    } else {
+      setError(
+        "No tienes un rol válido para acceder a los paneles específicos."
+      );
+    }
   };
 
   return (
     <div className="max-w-6xl mx-auto p-6 jdx-dashboard text-[#0f1b2e]">
       <header className="flex flex-col sm:flex-row justify-between items-center gap-4 mb-6 jdx-dashboard-header">
         <div>
-          <h1 className="text-xl font-bold mb-1 jdx-dashboard-title">Panel Principal</h1>
+          <h1 className="text-xl font-bold mb-1 jdx-dashboard-title">
+            Panel Principal
+          </h1>
           <p className="text-gray-500 text-sm jdx-dashboard-sub">
-            Resumen de noticias y accesos rápidos — {userData?.role ?? "Invitado"}
+            Resumen de noticias y accesos rápidos —{" "}
+            {userData?.role ?? "Invitado"}
           </p>
         </div>
 
@@ -76,18 +97,26 @@ export default function Dashboard() {
       )}
 
       <section className="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-5 gap-4 jdx-dashboard-grid">
-        {["Total", "Edición", "Terminado", "Publicado", "Desactivado"].map((status) => (
-          <article key={status} className="bg-white rounded-xl shadow-md p-4 flex flex-col gap-1 jdx-card">
-            <div className="text-gray-500 font-semibold text-sm jdx-card-title">{status}</div>
-            <div className="text-2xl font-extrabold jdx-card-value">
-              {status === "Total" ? counts.total : counts[status] || 0}
-            </div>
-          </article>
-        ))}
+        {["Total", "Edición", "Terminado", "Publicado", "Desactivado"].map(
+          (status) => (
+            <article
+              key={status}
+              className="bg-white rounded-xl shadow-md p-4 flex flex-col gap-1 jdx-card"
+            >
+              <div className="text-gray-500 font-semibold text-sm jdx-card-title">
+                {status}
+              </div>
+              <div className="text-2xl font-extrabold jdx-card-value">
+                {status === "Total" ? counts.total : counts[status] || 0}
+              </div>
+            </article>
+          )
+        )}
       </section>
 
       <footer className="mt-6 text-right text-gray-500 text-sm jdx-dashboard-footer">
-        Última actualización: {loading ? "actualizando…" : new Date().toLocaleString()}
+        Última actualización:{" "}
+        {loading ? "actualizando…" : new Date().toLocaleString()}
       </footer>
     </div>
   );

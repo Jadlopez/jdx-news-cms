@@ -27,6 +27,14 @@ export async function uploadImage(file, folder = "news") {
  * 📰 Crear noticia (incluye imageUrl e imagePath si aplica)
  */
 export async function createNews(data) {
+  // Obtenemos el usuario actual
+  const {
+    data: { user },
+    error: userError,
+  } = await supabase.auth.getUser();
+  if (userError) throw userError;
+  if (!user) throw new Error("Debes iniciar sesión para crear noticias");
+
   const payload = {
     title: data.title || "",
     subtitle: data.subtitle || "",
@@ -34,7 +42,7 @@ export async function createNews(data) {
     category: data.category || "General",
     image_url: data.imageUrl || "",
     image_path: data.imagePath || "",
-    author: data.author || "",
+    author: user.id, // Usamos el ID del usuario autenticado
     status: data.status || "Edición", // Edición | Terminado | Publicado | Desactivado
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
@@ -47,7 +55,8 @@ export async function createNews(data) {
     .single();
 
   if (error) throw error;
-  return news.id;
+  // Map DB row (snake_case) to client-friendly camelCase
+  return mapNewsRow(news);
 }
 
 /**
@@ -65,7 +74,7 @@ export async function getAllNews(status = null) {
 
   const { data, error } = await query;
   if (error) throw error;
-  return data;
+  return Array.isArray(data) ? data.map(mapNewsRow) : [];
 }
 
 /**
@@ -79,20 +88,28 @@ export async function getNewsById(id) {
     .single();
 
   if (error) throw error;
-  return data;
+  return mapNewsRow(data);
 }
 
 /**
  * ✏️ Actualizar noticia (mantiene la imagen anterior)
  */
 export async function updateNews(id, data) {
+  // Map incoming camelCase fields to DB columns
   const payload = {
-    ...data,
+    title: data.title,
+    subtitle: data.subtitle,
+    content: data.content,
+    category: data.category,
+    image_url: data.imageUrl,
+    image_path: data.imagePath,
+    // author should not be updated here normally, but allow if present
+    author: data.author,
+    status: data.status,
     updated_at: new Date().toISOString(),
   };
 
   const { error } = await supabase.from("news").update(payload).eq("id", id);
-
   if (error) throw error;
 }
 
@@ -156,5 +173,22 @@ export async function getNewsByAuthor(authorId, status = null) {
 
   const { data, error } = await query;
   if (error) throw error;
-  return data;
+  return Array.isArray(data) ? data.map(mapNewsRow) : [];
+}
+
+function mapNewsRow(row) {
+  if (!row) return null;
+  return {
+    id: row.id,
+    title: row.title,
+    subtitle: row.subtitle,
+    content: row.content,
+    category: row.category,
+    imageUrl: row.image_url || row.imageUrl || "",
+    imagePath: row.image_path || row.imagePath || "",
+    author: row.author,
+    status: row.status,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
 }

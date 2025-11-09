@@ -31,7 +31,15 @@ export default function Header() {
 
   const handleLogout = async () => {
     try {
-      await logout();
+      console.debug("Header.handleLogout - calling logout");
+      if (typeof logout === "function") {
+        await logout();
+      } else {
+        // Fallback: call supabase directly
+        const { error } = await supabase.auth.signOut();
+        if (error) throw error;
+      }
+      console.debug("Header.handleLogout - logout resolved");
       navigate("/login");
     } catch (error) {
       console.error("Error al cerrar sesión:", error);

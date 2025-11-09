@@ -5,11 +5,33 @@ import { Navigate, Outlet, useLocation } from "react-router-dom";
 import { useAuth } from "../../../contexts/AuthContext";
 
 export default function PrivateRoute({ allowedRoles = null }) {
-  const { user, userData, loading } = useAuth();
+  const { user, userData, loading, authError } = useAuth();
   const location = useLocation();
 
   // Mientras se verifica la sesión
   if (loading) {
+    // If there's an auth error (e.g. login failed), show that to the user instead of the spinner
+    if (authError) {
+      return (
+        <div className="min-h-[40vh] flex items-center justify-center p-6">
+          <div className="max-w-md text-center bg-white p-6 rounded shadow">
+            <h2 className="text-lg font-semibold mb-2">
+              No pudimos iniciar sesión
+            </h2>
+            <p className="text-sm text-red-600 mb-4">{authError}</p>
+            <p className="text-sm text-gray-600 mb-4">
+              Verifica tus credenciales e intenta de nuevo.
+            </p>
+            <div>
+              <a href="/login" className="jdx-btn jdx-btn-primary">
+                Volver al login
+              </a>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
     return (
       <div className="min-h-[40vh] flex items-center justify-center p-6">
         <div
@@ -57,16 +79,10 @@ export default function PrivateRoute({ allowedRoles = null }) {
     const role = userData?.role ?? null;
 
     // Si aún no hay userData, lo más robusto es mostrar un estado de carga mientras se resuelve.
-    // Aquí asumimos que AuthContext resuelve userData durante `loading`. Si no, consideraría
-    // forzar la obtención del perfil en el contexto.
+    // Aquí asumimos que AuthContext resuelve userData durante `loading`.
     if (!role || !allowedRoles.includes(role)) {
-      return (
-        <Navigate
-          to="/dashboard/no-autorizado"
-          replace
-          state={{ from: location }}
-        />
-      );
+      // Redirigir al inicio si no tiene permiso
+      return <Navigate to="/" replace state={{ from: location }} />;
     }
   }
 

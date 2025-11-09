@@ -30,13 +30,43 @@ export async function registerUser(email, password, name, role = "reportero") {
  * Inicia sesión con email/password
  */
 export async function loginUser(email, password) {
-  const { data, error } = await supabase.auth.signInWithPassword({
-    email,
-    password,
-  });
+  try {
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
 
-  if (error) throw error;
-  return data;
+    if (error) {
+      const msg = (error?.message || "").toLowerCase();
+      // Map common supabase auth errors to friendlier messages
+      if (
+        msg.includes("invalid login") ||
+        msg.includes("invalid credentials") ||
+        msg.includes("invalid password")
+      ) {
+        throw new Error("Correo o contraseña incorrectos.");
+      }
+      if (msg.includes("user not found") || msg.includes("no user")) {
+        throw new Error("No existe una cuenta con ese correo.");
+      }
+      if (msg.includes("invalid email")) {
+        throw new Error("Correo inválido.");
+      }
+      if (msg.includes("too many requests") || msg.includes("too many")) {
+        throw new Error("Demasiados intentos fallidos. Intenta más tarde.");
+      }
+
+      // Fallback: rethrow original error
+      throw error;
+    }
+
+    return data;
+  } catch (err) {
+    // Normalize to Error with message for UI
+    console.error("loginUser error:", err);
+    if (err instanceof Error) throw err;
+    throw new Error(String(err));
+  }
 }
 
 /**
