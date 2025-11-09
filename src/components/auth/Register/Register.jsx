@@ -25,7 +25,12 @@ export default function Register() {
   const redirectTo = location.state?.from ?? "/dashboard/reportero";
 
   const isMounted = useRef(true);
-  useEffect(() => () => { isMounted.current = false; }, []);
+  useEffect(
+    () => () => {
+      isMounted.current = false;
+    },
+    []
+  );
 
   // Si hay providerUser pre-llenamos nombre/email
   useEffect(() => {
@@ -42,14 +47,19 @@ export default function Register() {
 
   const friendlyError = (err) => {
     const msg = (err && (err.code || err.message)) || String(err || "");
-    if (/auth\/email-already-in-use/i.test(msg) || /email-already-in-use/i.test(msg)) {
+
+    // Supabase error codes
+    if (msg.includes("User already registered")) {
       return "El correo ya está registrado. Intenta iniciar sesión o usa otro correo.";
     }
-    if (/auth\/invalid-email/i.test(msg) || /invalid-email/i.test(msg)) {
+    if (msg.includes("Invalid email")) {
       return "Correo inválido.";
     }
-    if (/auth\/weak-password/i.test(msg) || /weak-password/i.test(msg)) {
+    if (msg.includes("Password should be at least 6 characters")) {
       return "La contraseña es débil. Usa al menos 6 caracteres.";
+    }
+    if (msg.includes("Database error saving new user")) {
+      return "Error al crear el perfil. Verifica que el correo sea válido y no esté en uso.";
     }
     return err?.message ?? "Error al crear la cuenta. Intenta de nuevo.";
   };
@@ -118,8 +128,13 @@ export default function Register() {
 
     setLoading(true);
     try {
-      const createdUser = await registerUser(form.email.trim(), form.password, form.name.trim());
-      const uid = createdUser?.uid ?? (createdUser?.user && createdUser.user.uid) ?? null;
+      const createdUser = await registerUser(
+        form.email.trim(),
+        form.password,
+        form.name.trim()
+      );
+      const uid =
+        createdUser?.uid ?? (createdUser?.user && createdUser.user.uid) ?? null;
 
       // Try read profile (registerUser already writes a doc in our service, but check)
       let profile = null;
@@ -148,7 +163,10 @@ export default function Register() {
         }
       }
 
-      if (typeof setUserData === "function") setUserData(profile ?? { uid, email: form.email.trim(), name: form.name.trim() });
+      if (typeof setUserData === "function")
+        setUserData(
+          profile ?? { uid, email: form.email.trim(), name: form.name.trim() }
+        );
       navigate(redirectTo, { replace: true });
     } catch (err) {
       console.error("Register error:", err);
@@ -173,7 +191,8 @@ export default function Register() {
       const displayName = user?.displayName;
       const photoURL = user?.photoURL;
 
-      if (!uid) throw new Error("No se pudo obtener información del proveedor (uid).");
+      if (!uid)
+        throw new Error("No se pudo obtener información del proveedor (uid).");
 
       // Check if profile exists
       let profile = null;
@@ -201,7 +220,8 @@ export default function Register() {
       navigate(redirectTo, { replace: true });
     } catch (err) {
       console.error("Google register error:", err);
-      if (isMounted.current) setError(err?.message ?? "Error al registrarse con Google.");
+      if (isMounted.current)
+        setError(err?.message ?? "Error al registrarse con Google.");
     } finally {
       if (isMounted.current) setLoadingGoogle(false);
     }
@@ -211,12 +231,19 @@ export default function Register() {
 
   return (
     <div className="register-page">
-      <div className="register-card" role="region" aria-labelledby="register-title">
-        <h2 id="register-title" className="register-title">Registro</h2>
+      <div
+        className="register-card"
+        role="region"
+        aria-labelledby="register-title"
+      >
+        <h2 id="register-title" className="register-title">
+          Registro
+        </h2>
 
         {providerUser && (
           <div className="register-note" role="status" aria-live="polite">
-            Se detectaron datos desde Google. Completa o confirma tu perfil para crear tu cuenta.
+            Se detectaron datos desde Google. Completa o confirma tu perfil para
+            crear tu cuenta.
           </div>
         )}
 
@@ -279,7 +306,11 @@ export default function Register() {
             disabled={isBusy}
             aria-disabled={isBusy}
           >
-            {loading ? "Creando cuenta..." : providerUser ? "Finalizar registro" : "Registrarse"}
+            {loading
+              ? "Creando cuenta..."
+              : providerUser
+              ? "Finalizar registro"
+              : "Registrarse"}
           </button>
         </form>
 
@@ -294,17 +325,40 @@ export default function Register() {
           disabled={isBusy}
           aria-label="Continuar con Google"
         >
-          <svg width="18" height="18" viewBox="0 0 533.5 544.3" aria-hidden="true" focusable="false">
-            <path fill="#4285f4" d="M533.5 278.4c0-17.7-1.6-35.4-4.8-52.5H272v99.4h146.9c-6.4 34.9-26.1 64.4-55.6 84.2v69.9h89.6c52.4-48.3 82.6-119.5 82.6-200.9z"/>
-            <path fill="#34a853" d="M272 544.3c73.6 0 135.5-24.4 180.7-66.5l-89.6-69.9c-24.9 16.7-56.6 26.5-91.1 26.5-69.9 0-129.2-47.2-150.4-110.5H31.6v69.5C76.2 487 168.6 544.3 272 544.3z"/>
-            <path fill="#fbbc04" d="M121.6 327.9c-11.7-34.9-11.7-72.6 0-107.5V150.9H31.6c-39.3 78.3-39.3 171.6 0 249.9l90-72.9z"/>
-            <path fill="#ea4335" d="M272 109.7c38.9-.6 76.5 14.2 104.9 40.8l78.6-78.6C408.1 24.1 344.7-.2 272 0 168.6 0 76.2 57.3 31.6 150.9l90 69.5C142.8 157 202.1 109.7 272 109.7z"/>
+          <svg
+            width="18"
+            height="18"
+            viewBox="0 0 533.5 544.3"
+            aria-hidden="true"
+            focusable="false"
+          >
+            <path
+              fill="#4285f4"
+              d="M533.5 278.4c0-17.7-1.6-35.4-4.8-52.5H272v99.4h146.9c-6.4 34.9-26.1 64.4-55.6 84.2v69.9h89.6c52.4-48.3 82.6-119.5 82.6-200.9z"
+            />
+            <path
+              fill="#34a853"
+              d="M272 544.3c73.6 0 135.5-24.4 180.7-66.5l-89.6-69.9c-24.9 16.7-56.6 26.5-91.1 26.5-69.9 0-129.2-47.2-150.4-110.5H31.6v69.5C76.2 487 168.6 544.3 272 544.3z"
+            />
+            <path
+              fill="#fbbc04"
+              d="M121.6 327.9c-11.7-34.9-11.7-72.6 0-107.5V150.9H31.6c-39.3 78.3-39.3 171.6 0 249.9l90-72.9z"
+            />
+            <path
+              fill="#ea4335"
+              d="M272 109.7c38.9-.6 76.5 14.2 104.9 40.8l78.6-78.6C408.1 24.1 344.7-.2 272 0 168.6 0 76.2 57.3 31.6 150.9l90 69.5C142.8 157 202.1 109.7 272 109.7z"
+            />
           </svg>
-          <span>{loadingGoogle ? "Procesando..." : "Continuar con Google"}</span>
+          <span>
+            {loadingGoogle ? "Procesando..." : "Continuar con Google"}
+          </span>
         </button>
 
         <div className="register-footer">
-          ¿Ya tienes cuenta? <Link to="/login" className="register-link">Inicia sesión</Link>
+          ¿Ya tienes cuenta?{" "}
+          <Link to="/login" className="register-link">
+            Inicia sesión
+          </Link>
         </div>
       </div>
     </div>

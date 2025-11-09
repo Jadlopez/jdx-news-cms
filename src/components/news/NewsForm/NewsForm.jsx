@@ -1,7 +1,12 @@
 // src/components/news/NewsForm.jsx
 import React, { useEffect, useState } from "react";
-import { uploadImage, createNews, updateNews, deleteImage } from "../../services/newsService";
-import { useAuth } from "../../contexts/AuthContext";
+import {
+  uploadImage,
+  createNews,
+  updateNews,
+  deleteImage,
+} from "../../../services/newsService";
+import { useAuth } from "../../../contexts/AuthContext";
 
 const NewsForm = ({ existing, onSaved }) => {
   const { user, userData } = useAuth();
@@ -99,7 +104,10 @@ const NewsForm = ({ existing, onSaved }) => {
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4 bg-white p-4 rounded-2xl shadow-md">
+    <form
+      onSubmit={handleSubmit}
+      className="space-y-4 bg-white p-4 rounded-2xl shadow-md"
+    >
       <h2 className="text-lg font-semibold text-jdx-dark">
         {existing ? "Editar Noticia" : "Nueva Noticia"}
       </h2>
@@ -125,7 +133,11 @@ const NewsForm = ({ existing, onSaved }) => {
         <label className="block text-sm font-medium mb-1">Imagen:</label>
         <input type="file" accept="image/*" onChange={handleImageChange} />
         {preview && (
-          <img src={preview} alt="Preview" className="mt-2 w-40 h-40 object-cover rounded-lg" />
+          <img
+            src={preview}
+            alt="Preview"
+            className="mt-2 w-40 h-40 object-cover rounded-lg"
+          />
         )}
       </div>
 

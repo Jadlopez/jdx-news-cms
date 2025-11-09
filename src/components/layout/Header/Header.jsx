@@ -2,8 +2,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../../../contexts/AuthContext";
-import { signOut } from "firebase/auth";
-import { auth } from "../../../firebase/firebaseConfig";
+import { supabase } from "../../../supabase/client";
 import logo from "../../../assets/logo.png";
 import "./Header.css";
 
@@ -36,7 +35,8 @@ export default function Header() {
         await logout();
       } else {
         // Fallback si AuthContext no proporciona logout
-        await signOut(auth);
+        const { error } = await supabase.auth.signOut();
+        if (error) throw error;
       }
       navigate("/login");
     } catch (error) {
@@ -61,7 +61,10 @@ export default function Header() {
           aria-label={open ? "Cerrar menú" : "Abrir menú"}
           onClick={() => setOpen((s) => !s)}
         >
-          <span className={`hamburger ${open ? "is-active" : ""}`} aria-hidden="true" />
+          <span
+            className={`hamburger ${open ? "is-active" : ""}`}
+            aria-hidden="true"
+          />
         </button>
 
         {/* Navegación principal */}
@@ -76,7 +79,11 @@ export default function Header() {
 
           {user ? (
             <>
-              <Link to="/dashboard" className="jdx-nav-link" onClick={() => setOpen(false)}>
+              <Link
+                to="/dashboard"
+                className="jdx-nav-link"
+                onClick={() => setOpen(false)}
+              >
                 Panel
               </Link>
               <button
@@ -93,7 +100,11 @@ export default function Header() {
             </>
           ) : (
             <>
-              <Link to="/login" className="jdx-nav-link" onClick={() => setOpen(false)}>
+              <Link
+                to="/login"
+                className="jdx-nav-link"
+                onClick={() => setOpen(false)}
+              >
                 Ingresar
               </Link>
               <Link

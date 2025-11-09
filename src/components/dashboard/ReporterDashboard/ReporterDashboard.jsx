@@ -1,8 +1,8 @@
 // src/components/dashboard/ReporterDashboard/ReporterDashboard.jsx
 import React, { useEffect, useState, useCallback } from "react";
-import { getNewsByAuthor, deleteNews } from "../../../services/newsService";
-import NewsForm from "../../news/NewsForm";
-import NewsList from "../../news/NewsList";
+import { deleteNews, updateNewsStatus } from "../../../services/newsService";
+import NewsForm from "../../news/NewsForm/NewsForm";
+import NewsList from "../../news/NewsList/NewsList";
 import { useAuth } from "../../../contexts/AuthContext";
 import "./ReporterDashboard.css";
 
@@ -51,7 +51,9 @@ const ReporterDashboard = () => {
   };
 
   const handleDelete = async (id) => {
-    const ok = window.confirm("¿Eliminar esta noticia? Esta acción no se puede deshacer.");
+    const ok = window.confirm(
+      "¿Eliminar esta noticia? Esta acción no se puede deshacer."
+    );
     if (!ok) return;
     try {
       await deleteNews(id);
@@ -65,7 +67,9 @@ const ReporterDashboard = () => {
   return (
     <div className="reporter-dashboard p-6">
       <div className="reporter-header mb-4 flex items-center justify-between">
-        <h1 className="text-2xl font-semibold text-jdx-dark">Panel de Reportero</h1>
+        <h1 className="text-2xl font-semibold text-jdx-dark">
+          Panel de Reportero
+        </h1>
         <div>
           <button
             className="jdx-btn jdx-btn-outline"
@@ -96,7 +100,11 @@ const ReporterDashboard = () => {
         </div>
       )}
 
-      {error && <div className="reporter-error" role="alert">{error}</div>}
+      {error && (
+        <div className="reporter-error" role="alert">
+          {error}
+        </div>
+      )}
 
       {loading ? (
         <p className="text-muted">Cargando noticias...</p>
@@ -119,4 +127,3 @@ const ReporterDashboard = () => {
 };
 
 export default ReporterDashboard;
-

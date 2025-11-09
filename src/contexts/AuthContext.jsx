@@ -1,8 +1,12 @@
 // src/contexts/AuthContext.jsx
-import React, { createContext, useContext, useEffect, useState, useRef } from "react";
-import { onAuthStateChanged } from "firebase/auth";
-import { doc, getDoc } from "firebase/firestore";
-import { auth, db } from "../firebase/firebaseConfig";
+import React, {
+  createContext,
+  useContext,
+  useEffect,
+  useState,
+  useRef,
+} from "react";
+import { supabase } from "../supabase/client";
 
 const AuthContext = createContext();
 
@@ -27,33 +31,43 @@ export function AuthProvider({ children }) {
     mountedRef.current = true;
     setLoading(true);
 
-    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+    // Subscribe to auth changes
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (!mountedRef.current) return;
-      setUser(firebaseUser);
+
+      const currentUser = session?.user;
+      setUser(currentUser);
       setUserData(null);
 
-      if (firebaseUser) {
+      if (currentUser) {
         try {
-          const userDocRef = doc(db, "users", firebaseUser.uid);
-          const snap = await getDoc(userDocRef);
+          const { data: profile, error } = await supabase
+            .from("users")
+            .select("*")
+            .eq("id", currentUser.id)
+            .single();
 
           if (!mountedRef.current) return;
 
-          if (snap.exists()) {
-            setUserData(snap.data());
+          if (error) throw error;
+
+          if (profile) {
+            setUserData(profile);
           } else {
-            // Si no existe documento en Firestore, dejamos un perfil mínimo por defecto.
+            // Si no existe perfil en la base de datos, creamos uno por defecto
             setUserData({
-              uid: firebaseUser.uid,
-              email: firebaseUser.email ?? null,
-              name: firebaseUser.displayName ?? null,
+              id: currentUser.id,
+              email: currentUser.email,
+              name: currentUser.user_metadata?.name ?? null,
               role: "reportero",
-              createdAt: null,
+              created_at: new Date().toISOString(),
             });
           }
         } catch (err) {
           console.error("Error fetching user data:", err);
-          // Mantener userData en null para que otros componentes reaccionen correctamente.
+          // Mantener userData en null para que otros componentes reaccionen correctamente
         }
       }
 
@@ -62,7 +76,7 @@ export function AuthProvider({ children }) {
 
     return () => {
       mountedRef.current = false;
-      unsubscribe();
+      subscription?.unsubscribe();
     };
   }, []);
 

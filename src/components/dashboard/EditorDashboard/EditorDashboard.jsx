@@ -1,7 +1,11 @@
 //src/components/dashboard/EditorDashboard/EditorDashboard.jsx
 import React, { useEffect, useState, useCallback } from "react";
-import { getAllNews, updateNewsStatus, deleteNews } from "../../../services/newsService";
-import NewsList from "../../news/NewsList";
+import {
+  getAllNews,
+  updateNewsStatus,
+  deleteNews,
+} from "../../../services/newsService";
+import NewsList from "../../news/NewsList/NewsList";
 import "./EditorDashboard.css";
 
 /**
@@ -61,7 +65,9 @@ export default function EditorDashboard() {
   };
 
   const handleDelete = async (id) => {
-    const ok = window.confirm("¿Eliminar la noticia? Esta acción no se puede deshacer.");
+    const ok = window.confirm(
+      "¿Eliminar la noticia? Esta acción no se puede deshacer."
+    );
     if (!ok) return;
     try {
       await deleteNews(id);
@@ -85,7 +91,9 @@ export default function EditorDashboard() {
     <div className="editor-dashboard p-6">
       <div className="editor-header mb-4">
         <h1 className="text-2xl font-bold">Panel del Editor</h1>
-        <p className="text-muted">Revisa, publica o desactiva noticias creadas por los reporteros.</p>
+        <p className="text-muted">
+          Revisa, publica o desactiva noticias creadas por los reporteros.
+        </p>
       </div>
 
       <div className="editor-controls mb-4">
@@ -104,13 +112,19 @@ export default function EditorDashboard() {
             <option>Publicado</option>
             <option>Desactivado</option>
           </select>
-          <button onClick={handleRefresh} className="control-btn" aria-label="Refrescar listado">
+          <button
+            onClick={handleRefresh}
+            className="control-btn"
+            aria-label="Refrescar listado"
+          >
             Refrescar
           </button>
         </div>
 
         <div className="control-group">
-          <label htmlFor="search" className="sr-only">Buscar</label>
+          <label htmlFor="search" className="sr-only">
+            Buscar
+          </label>
           <input
             id="search"
             value={search}
@@ -122,7 +136,11 @@ export default function EditorDashboard() {
         </div>
       </div>
 
-      {error && <div className="editor-error" role="alert">{error}</div>}
+      {error && (
+        <div className="editor-error" role="alert">
+          {error}
+        </div>
+      )}
 
       {loading ? (
         <div className="editor-loading">Cargando noticias…</div>

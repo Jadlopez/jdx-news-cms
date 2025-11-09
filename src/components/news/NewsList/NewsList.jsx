@@ -1,7 +1,7 @@
 // src/components/news/NewsList.jsx
 import React, { useMemo, useState } from "react";
-import { deleteNews, updateNewsStatus } from "../../services/newsService";
-import { useAuth } from "../../contexts/AuthContext";
+import { deleteNews, updateNewsStatus } from "../../../services/newsService";
+import { useAuth } from "../../../contexts/AuthContext";
 
 export default function NewsList({ news = [], onEdit, refresh, pageSize = 6 }) {
   const { userData } = useAuth();
@@ -61,29 +61,61 @@ export default function NewsList({ news = [], onEdit, refresh, pageSize = 6 }) {
           {slice.map((n) => (
             <li key={n.id} className="bg-white rounded shadow p-3">
               <div className="flex gap-4">
-                {n.imageUrl && <img src={n.imageUrl} alt={n.title} className="w-28 h-20 object-cover rounded" />}
+                {n.imageUrl && (
+                  <img
+                    src={n.imageUrl}
+                    alt={n.title}
+                    className="w-28 h-20 object-cover rounded"
+                  />
+                )}
                 <div className="flex-1">
                   <h3 className="font-semibold">{n.title}</h3>
                   <p className="text-sm text-slate-600">{n.subtitle}</p>
                   <div className="text-xs text-slate-500 mt-1">
-                    {n.category} • {n.author} • <span className="italic">{n.status}</span>
+                    {n.category} • {n.author} •{" "}
+                    <span className="italic">{n.status}</span>
                   </div>
                 </div>
               </div>
 
               <div className="mt-3 flex gap-2">
-                <button onClick={() => onEdit(n)} className="px-3 py-1 border rounded text-sm">Editar</button>
-                <button onClick={() => handleDelete(n.id, n.imagePath)} className="px-3 py-1 rounded text-sm bg-red-500 text-white">Eliminar</button>
+                <button
+                  onClick={() => onEdit(n)}
+                  className="px-3 py-1 border rounded text-sm"
+                >
+                  Editar
+                </button>
+                <button
+                  onClick={() => handleDelete(n.id, n.imagePath)}
+                  className="px-3 py-1 rounded text-sm bg-red-500 text-white"
+                >
+                  Eliminar
+                </button>
 
                 {isEditor && (
                   <>
-                    <button onClick={() => handleChangeStatus(n.id, "Publicado")} className="px-3 py-1 rounded text-sm bg-green-600 text-white">Publicar</button>
-                    <button onClick={() => handleChangeStatus(n.id, "Desactivado")} className="px-3 py-1 rounded text-sm bg-yellow-500 text-white">Desactivar</button>
+                    <button
+                      onClick={() => handleChangeStatus(n.id, "Publicado")}
+                      className="px-3 py-1 rounded text-sm bg-green-600 text-white"
+                    >
+                      Publicar
+                    </button>
+                    <button
+                      onClick={() => handleChangeStatus(n.id, "Desactivado")}
+                      className="px-3 py-1 rounded text-sm bg-yellow-500 text-white"
+                    >
+                      Desactivar
+                    </button>
                   </>
                 )}
 
                 {isReporter && n.status !== "Publicado" && (
-                  <button onClick={() => handleChangeStatus(n.id, "Terminado")} className="px-3 py-1 rounded text-sm bg-sky-500 text-white">Marcar Terminado</button>
+                  <button
+                    onClick={() => handleChangeStatus(n.id, "Terminado")}
+                    className="px-3 py-1 rounded text-sm bg-sky-500 text-white"
+                  >
+                    Marcar Terminado
+                  </button>
                 )}
               </div>
             </li>
@@ -93,11 +125,25 @@ export default function NewsList({ news = [], onEdit, refresh, pageSize = 6 }) {
 
       {/* paginación simple */}
       <div className="flex items-center justify-between mt-4">
-        <div className="text-sm text-slate-600">Página {page} de {totalPages}</div>
+        <div className="text-sm text-slate-600">
+          Página {page} de {totalPages}
+        </div>
 
         <div className="flex gap-2">
-          <button onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page === 1} className="px-3 py-1 border rounded">Anterior</button>
-          <button onClick={() => setPage((p) => Math.min(totalPages, p + 1))} disabled={page === totalPages} className="px-3 py-1 border rounded">Siguiente</button>
+          <button
+            onClick={() => setPage((p) => Math.max(1, p - 1))}
+            disabled={page === 1}
+            className="px-3 py-1 border rounded"
+          >
+            Anterior
+          </button>
+          <button
+            onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+            disabled={page === totalPages}
+            className="px-3 py-1 border rounded"
+          >
+            Siguiente
+          </button>
         </div>
       </div>
     </div>
