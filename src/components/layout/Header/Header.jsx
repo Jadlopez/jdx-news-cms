@@ -31,18 +31,11 @@ export default function Header() {
 
   const handleLogout = async () => {
     try {
-      if (typeof logout === "function") {
-        await logout();
-      } else {
-        // Fallback si AuthContext no proporciona logout
-        const { error } = await supabase.auth.signOut();
-        if (error) throw error;
-      }
+      await logout();
       navigate("/login");
     } catch (error) {
       console.error("Error al cerrar sesión:", error);
-      // mostrar feedback al usuario si lo deseas
-      navigate("/login");
+      alert("Error al cerrar sesión. Intente nuevamente.");
     }
   };
 

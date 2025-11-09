@@ -1,6 +1,10 @@
 // src/components/dashboard/ReporterDashboard/ReporterDashboard.jsx
 import React, { useEffect, useState, useCallback } from "react";
-import { deleteNews, updateNewsStatus } from "../../../services/newsService";
+import {
+  deleteNews,
+  updateNewsStatus,
+  getNewsByAuthor,
+} from "../../../services/newsService";
 import NewsForm from "../../news/NewsForm/NewsForm";
 import NewsList from "../../news/NewsList/NewsList";
 import { useAuth } from "../../../contexts/AuthContext";
@@ -26,11 +30,11 @@ const ReporterDashboard = () => {
   const [showForm, setShowForm] = useState(true);
 
   const loadNews = useCallback(async () => {
-    if (!user?.email) return;
+    if (!user?.id) return;
     setLoading(true);
     setError(null);
     try {
-      const list = await getNewsByAuthor(user.email);
+      const list = await getNewsByAuthor(user.id);
       setNews(Array.isArray(list) ? list : []);
     } catch (err) {
       console.error("Error cargando noticias:", err);

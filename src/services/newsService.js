@@ -137,3 +137,24 @@ export async function deleteImage(path) {
   const { error } = await supabase.storage.from("news-images").remove([path]);
   if (error) throw error;
 }
+
+/**
+ * 👤 Obtener noticias por autor
+ * @param {string} authorId - ID del autor
+ * @param {string} [status] - Estado opcional para filtrar
+ */
+export async function getNewsByAuthor(authorId, status = null) {
+  let query = supabase
+    .from("news")
+    .select("*")
+    .eq("author", authorId)
+    .order("created_at", { ascending: false });
+
+  if (status) {
+    query = query.eq("status", status);
+  }
+
+  const { data, error } = await query;
+  if (error) throw error;
+  return data;
+}

@@ -80,11 +80,24 @@ export function AuthProvider({ children }) {
     };
   }, []);
 
+  const logout = async () => {
+    try {
+      const { error } = await supabase.auth.signOut();
+      if (error) throw error;
+      setUser(null);
+      setUserData(null);
+    } catch (error) {
+      console.error("Error en logout:", error);
+      throw error;
+    }
+  };
+
   const value = {
     user,
     userData,
     loading,
-    setUserData, // <-- IMPORTANTE: ahora disponible para components (Login usa esto)
+    setUserData,
+    logout, // <-- Añadimos la función de logout al contexto
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

@@ -5,76 +5,23 @@ import { supabase } from "../supabase/client.js";
  * Registra usuario y crea perfil en la base de datos
  */
 export async function registerUser(email, password, name, role = "reportero") {
-  console.log('Iniciando registro de usuario:', { email, name, role });
-  
   try {
-    // Primero intentamos registrar el usuario en auth
-    const { data, error: signUpError } = await supabase.auth.signUp({
+    // Crear el usuario en auth
+    const { data: authData, error: signUpError } = await supabase.auth.signUp({
       email,
       password,
       options: {
-        data: {
-          name,
-        },
-      }
+        data: { name },
+      },
     });
 
-    if (signUpError) {
-      console.error('Error en signUp:', signUpError);
-      throw signUpError;
-    }
+    if (signUpError) throw signUpError;
+    if (!authData?.user) throw new Error("No se pudo crear la cuenta");
 
-    if (!data) {
-      console.error('No se recibió respuesta de signUp');
-      throw new Error('No se pudo crear la cuenta');
-    }
-
-    console.log('Respuesta de signUp:', data);
-
-    const user = data.user;
-    const session = data.session;
-
-    if (!user) {
-      console.error('No se recibió usuario después de signUp');
-      throw new Error('Error al crear usuario');
-    }
-
-    // El trigger debería crear el perfil automáticamente, pero podemos verificar
-    try {
-      const { data: profile, error: profileCheckError } = await supabase
-        .from('users')
-        .select('*')
-        .eq('id', user.id)
-        .single();
-
-      if (profileCheckError) {
-        console.warn('Error al verificar perfil:', profileCheckError);
-      } else if (!profile) {
-        console.log('Perfil no encontrado, intentando crear manualmente');
-        
-        const { error: insertError } = await supabase
-          .from('users')
-          .insert([{
-            id: user.id,
-            name,
-            email,
-            role,
-            created_at: new Date().toISOString(),
-          }]);
-
-        if (insertError) {
-          console.error('Error al crear perfil manualmente:', insertError);
-        }
-      } else {
-        console.log('Perfil existente encontrado:', profile);
-      }
-    } catch (err) {
-      console.error('Error al manejar perfil:', err);
-    }
-
-    return user;
+    // El trigger creará el perfil automáticamente
+    return authData.user;
   } catch (error) {
-    console.error('Error en registerUser:', error);
+    console.error("Error en registerUser:", error);
     throw error;
   }
 }
