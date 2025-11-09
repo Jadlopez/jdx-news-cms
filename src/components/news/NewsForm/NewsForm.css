@@ -1,0 +1,32 @@
+/* src/components/news/NewsForm/NewsForm.css */    
+/* NewsForm - estilos ligeros, mantiene coherencia con diseño JDX */
+
+/* Layout */
+.jdx-news-form { background: white; padding: 12px; border-radius: 12px; box-shadow: 0 6px 18px rgba(15,27,46,0.04); }
+.jdx-news-form-grid { display: grid; grid-template-columns: 1fr 320px; gap: 16px; }
+.jdx-news-form-main { display: flex; flex-direction: column; gap: 10px; }
+.jdx-news-form-aside { display:flex; flex-direction:column; gap:12px; }
+
+/* Inputs */
+.jdx-label { font-weight: 700; font-size: 0.9rem; color: #374151; margin-bottom: 6px; display:block; }
+.jdx-input, .jdx-select, .jdx-textarea { width: 100%; padding: 10px 12px; border-radius: 10px; border: 1px solid #e6e9ef; background: #fff; resize: vertical; }
+.jdx-textarea { min-height: 150px; }
+
+.jdx-field-error { color: #b91c1c; font-size: 0.85rem; margin-top: 6px; }
+
+/* image preview */
+.jdx-image-preview { width: 100%; height: 180px; object-fit: cover; border-radius: 10px; border: 1px solid #eef2f7; margin-top: 8px; }
+
+/* progress bar */
+.jdx-progress { display:flex; align-items:center; gap:8px; margin-top:8px; }
+.jdx-progress-bar { height: 8px; background: var(--jdx-accent, #00bfae); border-radius: 999px; transition: width 200ms ease; flex: 1; }
+
+/* actions */
+.jdx-form-actions { display:flex; gap:8px; margin-top: 6px; }
+.jdx-btn-primary { background: var(--jdx-accent, #00bfae); color: white; padding: 10px 12px; border-radius: 10px; border: none; font-weight: 700; cursor: pointer; }
+.jdx-btn-secondary { background: transparent; border: 1px solid rgba(15,27,46,0.06); padding: 10px 12px; border-radius: 10px; cursor: pointer; }
+
+/* Responsive */
+@media (max-width: 900px) {
+  .jdx-news-form-grid { grid-template-columns: 1fr; }
+}

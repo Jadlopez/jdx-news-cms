@@ -2,8 +2,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../../../contexts/AuthContext";
-import { signOut } from "firebase/auth";
-import { auth } from "../../../firebase/firebaseConfig";
 import logo from "../../../assets/logo.png";
 import "./Header.css";
 

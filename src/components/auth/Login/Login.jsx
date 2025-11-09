@@ -6,258 +6,202 @@ import { useAuth } from "../../../contexts/AuthContext";
 import logo from "../../../assets/logo.png";
 import "./Login.css";
 
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import * as z from "zod";
+import toast from "react-hot-toast";
+
+const schema = z.object({
+  email: z.string().min(1, "El correo es requerido.").email("Ingresa un correo válido."),
+  password: z.string().min(6, "La contraseña debe tener al menos 6 caracteres."),
+  remember: z.boolean().optional(),
+});
+
 export default function Login() {
   const { setUserData } = useAuth() ?? {};
   const navigate = useNavigate();
   const location = useLocation();
-  // Si no hay ruta de origen, vamos al dashboard por defecto
   const redirectTo = location.state?.from?.pathname ?? "/dashboard";
-
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [showPassword, setShowPassword] = useState(false);
-  const [remember, setRemember] = useState(true);
-  const [error, setError] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [loadingGoogle, setLoadingGoogle] = useState(false);
 
   const isMounted = useRef(true);
   useEffect(() => () => { isMounted.current = false; }, []);
 
+  const {
+    register,
+    handleSubmit,
+    setValue,
+    formState: { errors, isSubmitting },
+  } = useForm({
+    resolver: zodResolver(schema),
+    defaultValues: { email: "", password: "", remember: true },
+  });
+
+  // Pre-fill email if providerUser present
+  useEffect(() => {
+    const providerUser = location.state?.providerUser;
+    if (providerUser?.email) setValue("email", providerUser.email);
+  }, [location.state, setValue]);
+
   const normalizeUser = (u) => {
     if (!u) return null;
     if (u.uid) return u;
-    if (u.user && u.user.uid) return u.user;
+    if (u.user?.uid) return u.user;
     return u;
   };
 
-  const validate = () => {
-    if (!email) return "El correo es requerido.";
-    const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!re.test(email)) return "Ingresa un correo válido.";
-    if (!password) return "La contraseña es requerida.";
-    if (password.length < 6) return "La contraseña debe tener al menos 6 caracteres.";
-    return null;
-  };
-
   const friendlyError = (err) => {
-    const msg = (err && (err.code || err.message)) || String(err || "");
-    if (/wrong-password/i.test(msg) || /auth\/wrong-password/i.test(msg)) {
-      return "Correo o contraseña incorrectos.";
-    }
-    if (/user-not-found/i.test(msg) || /auth\/user-not-found/i.test(msg)) {
-      return "No existe una cuenta con ese correo.";
-    }
-    if (/invalid-email/i.test(msg) || /auth\/invalid-email/i.test(msg)) {
-      return "Correo inválido.";
-    }
-    if (/too-many-requests/i.test(msg) || /auth\/too-many-requests/i.test(msg)) {
-      return "Demasiados intentos fallidos. Intenta más tarde.";
-    }
-    // Si viene message legible, devolverlo (útil en desarrollo / servicios)
-    if (err && err.message) return err.message;
-    return "Error al iniciar sesión. Revisa tus datos e intenta de nuevo.";
+    const msg = (err?.code || err?.message || String(err || "")).toLowerCase();
+    if (msg.includes("wrong-password")) return "Correo o contraseña incorrectos.";
+    if (msg.includes("user-not-found")) return "No existe una cuenta con ese correo.";
+    if (msg.includes("invalid-email")) return "Correo inválido.";
+    if (msg.includes("too-many-requests")) return "Demasiados intentos fallidos. Intenta más tarde.";
+    // Mostrar mensaje directo si existe (útil en desarrollo)
+    if (err?.message) return err.message;
+    return "Error al iniciar sesión. Intenta nuevamente.";
   };
 
-  const handleLogin = async (e) => {
-    e.preventDefault();
-    if (loading || loadingGoogle) return;
-
-    setError("");
-    const v = validate();
-    if (v) {
-      setError(v);
-      return;
-    }
-
-    setLoading(true);
+  const onSubmit = async (values) => {
+    if (!isMounted.current) return;
     try {
-      const raw = await loginUser(email.trim(), password, { remember });
+      toast.dismiss();
+      const t = toast.loading("Iniciando sesión...");
+      const raw = await loginUser(values.email.trim(), values.password, { remember: values.remember });
       const user = normalizeUser(raw);
-      if (!user?.uid) throw new Error("No se obtuvo uid del proveedor de autenticación.");
+      if (!user?.uid) throw new Error("No se obtuvo uid.");
 
-      let data = null;
-      try {
-        data = await getUserData(user.uid);
-      } catch (dbErr) {
-        // No detenga el flujo si falla la lectura del perfil; permitimos continuar
-        console.error("getUserData error:", dbErr);
-      }
+      const data = await getUserData(user.uid).catch(() => null);
+      if (setUserData) setUserData(data ?? { uid: user.uid, email: user.email });
 
-      if (typeof setUserData === "function") {
-        try {
-          setUserData(data ?? { uid: user.uid, email: user.email });
-        } catch (ctxErr) {
-          console.error("setUserData error:", ctxErr);
-        }
-      }
+      toast.success("Sesión iniciada", { id: t });
 
-      // Si ruta de origen, ir allí; si no, dirigir según rol si existe
-      if (redirectTo && redirectTo !== "/login" && redirectTo !== "/register") {
+      if (redirectTo && !["/login", "/register"].includes(redirectTo)) {
         navigate(redirectTo, { replace: true });
         return;
       }
 
-      if (data?.role === "editor") navigate("/dashboard/editor", { replace: true });
-      else navigate("/dashboard/reportero", { replace: true });
+      navigate(data?.role === "editor" ? "/dashboard/editor" : "/dashboard/reportero", { replace: true });
     } catch (err) {
       console.error("Login error:", err);
-      if (isMounted.current) setError(friendlyError(err));
-    } finally {
-      if (isMounted.current) setLoading(false);
+      if (isMounted.current) {
+        const message = friendlyError(err);
+        toast.dismiss();
+        toast.error(message);
+      }
     }
   };
 
   const handleGoogleSignIn = async () => {
-    if (loading || loadingGoogle) return;
-    setError("");
-    setLoadingGoogle(true);
+    if (!isMounted.current) return;
     try {
-      const raw = await signInWithGoogle({ remember });
+      toast.dismiss();
+      const t = toast.loading("Accediendo con Google...");
+      const raw = await signInWithGoogle({ remember: true });
       const user = normalizeUser(raw);
-      if (!user?.uid) throw new Error("No se obtuvo información del usuario desde el proveedor.");
+      if (!user?.uid) throw new Error("No se obtuvo información del proveedor.");
 
-      let data = null;
-      try { data = await getUserData(user.uid); } catch (dbErr) { console.error("getUserData error (google):", dbErr); }
-
+      const data = await getUserData(user.uid).catch(() => null);
       if (data) {
-        if (typeof setUserData === "function") setUserData(data);
-        if (redirectTo && redirectTo !== "/login" && redirectTo !== "/register") { navigate(redirectTo, { replace: true }); return; }
-        if (data?.role === "editor") navigate("/dashboard/editor", { replace: true });
-        else navigate("/dashboard/reportero", { replace: true });
+        setUserData?.(data);
+        toast.success("Bienvenido/a", { id: t });
+        navigate(data.role === "editor" ? "/dashboard/editor" : "/dashboard/reportero", { replace: true });
       } else {
-        // Si no existe perfil en DB, dirigir a registro con datos prellenados
+        toast.dismiss();
+        toast.success("Completa tu registro", { id: t });
         navigate("/register", {
           replace: true,
           state: {
             from: redirectTo ?? "/dashboard/reportero",
             provider: "google",
-            providerUser: {
-              uid: user.uid,
-              email: user.email,
-              displayName: user.displayName,
-              photoURL: user.photoURL,
-            },
+            providerUser: user,
           },
         });
       }
     } catch (err) {
       console.error("Google sign-in error:", err);
-      if (isMounted.current) setError(friendlyError(err));
-    } finally {
-      if (isMounted.current) setLoadingGoogle(false);
+      toast.dismiss();
+      toast.error(friendlyError(err));
     }
   };
 
-  const isBusy = loading || loadingGoogle;
+  const isBusy = isSubmitting;
 
   return (
-    <div className="login-page">
-      <div className="login-wrapper">
+    <div className="login-page bg-gradient-to-b from-gray-50 to-gray-100 flex items-center justify-center min-h-screen p-6">
+      <div className="login-wrapper w-full max-w-md">
         <form
           data-jdx-login
-          onSubmit={handleLogin}
-          className="login-card"
-          aria-describedby="form-error"
-          noValidate
+          onSubmit={handleSubmit(onSubmit)}
+          className="login-card bg-white rounded-2xl shadow-lg p-6 relative overflow-hidden"
           aria-busy={isBusy}
         >
           {isBusy && (
-            <div className="login-overlay" aria-hidden="true">
-              <div className="spinner" aria-hidden="true" />
+            <div className="login-overlay absolute inset-0 bg-white/75 flex items-center justify-center z-40">
+              <div className="spinner" />
             </div>
           )}
 
-          <div className="login-header">
-            <img src={logo} alt="JDX News" className="login-logo" />
+          <div className="login-header flex items-center gap-3 mb-4">
+            <img src={logo} alt="JDX News" className="login-logo w-12 h-12 object-contain rounded-lg" />
             <div>
-              <h1 className="login-title">Inicia sesión</h1>
-              <p className="login-sub">Accede al panel de administración</p>
+              <h1 className="login-title text-xl font-bold text-gray-900">Inicia sesión</h1>
+              <p className="login-sub text-gray-500 text-sm">Accede al panel de administración</p>
             </div>
           </div>
 
-          {error && (
-            <div id="form-error" role="alert" className="login-error" aria-live="polite">
-              {error}
+          {/* mostrar mensajes de validación del formulario */}
+          {errors.root && (
+            <div role="alert" className="login-error bg-red-50 border border-red-200 text-red-700 rounded-md p-3 mb-3 text-sm">
+              {errors.root.message}
             </div>
           )}
 
-          <label htmlFor="email">Correo electrónico</label>
+          <label htmlFor="email" className="block font-semibold text-gray-700 mb-1">Correo electrónico</label>
           <input
             id="email"
-            name="email"
             type="email"
-            inputMode="email"
-            autoComplete="email"
-            className="login-input"
             placeholder="tu@ejemplo.com"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
             disabled={isBusy}
-            required
-            autoFocus
+            className="login-input w-full border border-gray-300 rounded-md p-2.5 focus:ring-2 focus:ring-teal-400 outline-none mb-3"
+            {...register("email")}
           />
+          {errors.email && <p className="text-sm text-red-600 mb-2">{errors.email.message}</p>}
 
-          <label htmlFor="password">Contraseña</label>
-          <div className="login-password-row">
+          <label htmlFor="password" className="block font-semibold text-gray-700 mb-1">Contraseña</label>
+          <div className="login-password-row flex items-center gap-2 mb-4">
             <input
               id="password"
-              name="password"
-              type={showPassword ? "text" : "password"}
-              autoComplete="current-password"
-              className="login-input login-input-password"
+              type="password"
               placeholder="••••••••"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
               disabled={isBusy}
-              required
+              className="login-input-password flex-1 border border-gray-300 rounded-md p-2.5 focus:ring-2 focus:ring-teal-400 outline-none"
+              {...register("password")}
             />
-            <button
-              type="button"
-              className="btn-icon"
-              onClick={() => setShowPassword((s) => !s)}
-              aria-pressed={showPassword}
-              aria-label={showPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
-              disabled={isBusy}
-            >
-              {showPassword ? "👁️‍🗨️" : "👁️"}
-            </button>
           </div>
+          {errors.password && <p className="text-sm text-red-600 mb-2">{errors.password.message}</p>}
 
-          <div className="login-row">
-            <label className="checkbox-label">
-              <input
-                type="checkbox"
-                checked={remember}
-                onChange={(e) => setRemember(e.target.checked)}
-                disabled={isBusy}
-              />
+          <div className="login-row flex justify-between items-center mb-4 text-sm text-gray-600">
+            <label className="checkbox-label inline-flex items-center gap-2 cursor-pointer">
+              <input type="checkbox" disabled={isBusy} {...register("remember")} />
               <span>Recuérdame</span>
             </label>
-
-            <Link to="/forgot-password" className="link-muted">¿Olvidaste tu contraseña?</Link>
+            <Link to="/forgot-password" className="link-muted hover:underline">¿Olvidaste tu contraseña?</Link>
           </div>
 
-          <button
-            type="submit"
-            className="btn-primary"
-            disabled={isBusy}
-            aria-disabled={isBusy}
-            aria-live="polite"
-          >
-            {loading ? "Ingresando..." : "Entrar"}
+          <button type="submit" disabled={isBusy} className="btn-primary w-full bg-teal-500 hover:bg-teal-600 text-white font-semibold rounded-md py-2.5 transition">
+            {isBusy ? "Ingresando..." : "Entrar"}
           </button>
 
-          <div className="login-divider" aria-hidden="true">
-            <div className="login-divider-content">o</div>
+          <div className="login-divider flex items-center gap-3 my-4">
+            <div className="flex-1 h-px bg-gray-200"></div>
+            <span className="login-divider-content text-gray-400 text-sm">o</span>
+            <div className="flex-1 h-px bg-gray-200"></div>
           </div>
 
           <button
             type="button"
-            className="btn-google"
             onClick={handleGoogleSignIn}
             disabled={isBusy}
-            aria-label="Continuar con Google"
+            className="btn-google w-full border border-gray-300 bg-white rounded-md py-2.5 flex items-center justify-center gap-2 text-gray-800 font-medium hover:bg-gray-50 transition"
           >
             <svg width="18" height="18" viewBox="0 0 533.5 544.3" aria-hidden="true">
               <path fill="#4285f4" d="M533.5 278.4c0-17.7-1.6-35.4-4.8-52.5H272v99.4h146.9c-6.4 34.9-26.1 64.4-55.6 84.2v69.9h89.6c52.4-48.3 82.6-119.5 82.6-200.9z"/>
@@ -268,8 +212,9 @@ export default function Login() {
             <span>Continuar con Google</span>
           </button>
 
-          <div className="login-footer">
-            ¿No tienes cuenta? <Link to="/register" className="link-strong">Regístrate</Link>
+          <div className="login-footer text-center text-gray-600 text-sm mt-4">
+            ¿No tienes cuenta?{" "}
+            <Link to="/register" className="link-strong text-teal-600 font-semibold hover:underline">Regístrate</Link>
           </div>
         </form>
       </div>

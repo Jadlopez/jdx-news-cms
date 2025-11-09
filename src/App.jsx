@@ -36,25 +36,24 @@ export default function App() {
 
             {/* Rutas protegidas */}
             <Route element={<PrivateRoute />}>
-              <Route path="/dashboard" element={<Dashboard />} />
+  <Route path="/dashboard" element={<Dashboard />} />
 
-              <Route element={<PrivateRoute allowedRoles={["reportero"]} />}>
-                <Route path="/dashboard/reportero" element={<ReporterDashboard />} />
-              </Route>
+  <Route element={<PrivateRoute allowedRoles={["reportero"]} />}>
+  <Route path="/dashboard/reportero" element={<ReporterDashboard />} />
+</Route>
 
-              <Route element={<PrivateRoute allowedRoles={["editor"]} />}>
-                <Route path="/dashboard/editor" element={<EditorDashboard />} />
-              </Route>
 
-              <Route
-                path="/dashboard/no-autorizado"
-                element={
-                  <div className="text-center text-red-600 mt-10">
-                    No tienes permisos para acceder
-                  </div>
-                }
-              />
-            </Route>
+  <Route element={<PrivateRoute allowedRoles={["editor"]} />}>
+  <Route path="/dashboard/editor" element={<EditorDashboard />} />
+</Route>
+
+
+  <Route
+    path="/dashboard/no-autorizado"
+    element={<div className="text-center text-red-600 mt-10">No tienes permisos</div>}
+  />
+</Route>
+
 
             {/* 404 */}
             <Route path="*" element={<NotFound />} />

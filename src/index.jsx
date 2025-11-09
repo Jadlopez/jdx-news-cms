@@ -1,25 +1,33 @@
   // src/index.jsx
-  import React from "react";
-  import { createRoot } from "react-dom/client";
-  import { BrowserRouter } from "react-router-dom";
-  import App from "./App";
-  import { AuthProvider } from "./contexts/AuthContext";
-  import "./index.css";
+import React from "react";
+import { createRoot } from "react-dom/client";
+import { BrowserRouter } from "react-router-dom";
+import App from "./App";
+import { AuthProvider } from "./contexts/AuthContext";
+import "./index.css";
 
-  const container = document.getElementById("root");
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { Toaster } from "react-hot-toast";
 
-  if (!container) {
-    throw new Error("No se encontró el elemento #root en index.html");
-  }
+const queryClient = new QueryClient();
 
-  const root = createRoot(container);
+const container = document.getElementById("root");
 
-  root.render(
-    <React.StrictMode>
+if (!container) {
+  throw new Error("No se encontró el elemento #root en index.html");
+}
+
+const root = createRoot(container);
+
+root.render(
+  <React.StrictMode>
+    <QueryClientProvider client={queryClient}>
       <BrowserRouter>
         <AuthProvider>
           <App />
+          <Toaster position="top-right" />
         </AuthProvider>
       </BrowserRouter>
-    </React.StrictMode>
-  );
+    </QueryClientProvider>
+  </React.StrictMode>
+);

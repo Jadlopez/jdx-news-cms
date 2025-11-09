@@ -6,19 +6,8 @@ import NewsList from "../../news/NewsList";
 import { useAuth } from "../../../contexts/AuthContext";
 import "./ReporterDashboard.css";
 
-/**
- * ReporterDashboard
- * - Muestra formulario para crear/editar noticias (NewsForm)
- * - Lista las noticias del autor
- * - Permite editar y eliminar (si tu service lo soporta)
- *
- * Se procura:
- * - Manejo claro de loading / errores
- * - Confirmaciones en acciones destructivas
- * - Reutilización de NewsList (enviando varias props por compatibilidad)
- */
-const ReporterDashboard = () => {
-  const { user } = useAuth();
+export default function ReporterDashboard() {
+  const { user, userData } = useAuth();
   const [news, setNews] = useState([]);
   const [editing, setEditing] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -34,7 +23,7 @@ const ReporterDashboard = () => {
       setNews(Array.isArray(list) ? list : []);
     } catch (err) {
       console.error("Error cargando noticias:", err);
-      setError("Ocurrió un error al cargar tus noticias.");
+      setError("Error al cargar tus noticias.");
     } finally {
       setLoading(false);
     }
@@ -51,8 +40,7 @@ const ReporterDashboard = () => {
   };
 
   const handleDelete = async (id) => {
-    const ok = window.confirm("¿Eliminar esta noticia? Esta acción no se puede deshacer.");
-    if (!ok) return;
+    if (!window.confirm("¿Seguro que deseas eliminar esta noticia?")) return;
     try {
       await deleteNews(id);
       await loadNews();
@@ -64,59 +52,41 @@ const ReporterDashboard = () => {
 
   return (
     <div className="reporter-dashboard p-6">
-      <div className="reporter-header mb-4 flex items-center justify-between">
-        <h1 className="text-2xl font-semibold text-jdx-dark">Panel de Reportero</h1>
-        <div>
-          <button
-            className="jdx-btn jdx-btn-outline"
-            onClick={() => {
-              setShowForm((s) => !s);
-              if (!showForm) setEditing(null);
-            }}
-            aria-pressed={showForm}
-          >
-            {showForm ? "Ocultar formulario" : "Crear noticia"}
-          </button>
-        </div>
-      </div>
+      <header className="mb-4">
+        <h1 className="text-2xl font-bold">Panel del Reportero</h1>
+        <p className="text-gray-600 text-sm">Usuario: {userData?.email ?? user?.email ?? "—"}</p>
+      </header>
 
       {showForm && (
-        <div className="reporter-form mb-6">
-          <NewsForm
-            existing={editing}
-            onSaved={async () => {
-              setEditing(null);
-              await loadNews();
-            }}
-            onCancel={() => {
-              setEditing(null);
-              setShowForm(false);
-            }}
-          />
-        </div>
+        <NewsForm
+          initialData={editing}
+          onSuccess={() => {
+            setEditing(null);
+            loadNews();
+          }}
+        />
       )}
 
-      {error && <div className="reporter-error" role="alert">{error}</div>}
+      <div className="my-4">
+        <button
+          className="px-3 py-2 bg-gray-700 text-white rounded"
+          onClick={() => setShowForm(!showForm)}
+        >
+          {showForm ? "Ocultar formulario" : "Crear noticia"}
+        </button>
+      </div>
+
+      {error && <div className="p-3 bg-red-50 text-red-600 border border-red-200 rounded">{error}</div>}
 
       {loading ? (
-        <p className="text-muted">Cargando noticias...</p>
+        <p>Cargando noticias…</p>
       ) : (
-        <div>
-          <h2 className="text-lg font-semibold mb-3">Mis noticias</h2>
-
-          <NewsList
-            news={news}
-            data={news}
-            items={news}
-            onEdit={handleEdit}
-            onReload={loadNews}
-            onDelete={handleDelete}
-          />
-        </div>
+        <NewsList
+          news={news}
+          onEdit={handleEdit}
+          onDelete={handleDelete}
+        />
       )}
     </div>
   );
-};
-
-export default ReporterDashboard;
-
+}

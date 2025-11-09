@@ -1,0 +1,56 @@
+/* src/components/news/NewsView/NewsView.css */
+/* NewsView - estilos ligeros que respetan la paleta JDX */
+
+.jdx-newsview {
+  color: var(--jdx-dark, #0f1b2e);
+}
+
+.jdx-newsview-header .jdx-newsview-category {
+  display: inline-block;
+  background: rgba(0,191,174,0.08);
+  color: #036b5f;
+  padding: 4px 8px;
+  border-radius: 999px;
+  font-weight: 700;
+  font-size: 0.85rem;
+  margin-bottom: 8px;
+}
+
+.jdx-newsview-title {
+  margin: 6px 0;
+  font-size: 1.6rem;
+  line-height: 1.15;
+}
+
+.jdx-newsview-meta {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  color: var(--muted, #6b7280);
+  font-size: 0.9rem;
+}
+
+.jdx-newsview-badge {
+  margin-left: 8px;
+  padding: 3px 8px;
+  border-radius: 999px;
+  font-weight: 800;
+  font-size: 0.75rem;
+}
+
+.jdx-newsview-badge.status-publicado { background: rgba(16,185,129,0.12); color: #065f46; }
+.jdx-newsview-badge.status-edición { background: rgba(59,130,246,0.06); color: #1e40af; }
+.jdx-newsview-badge.status-terminado { background: rgba(14,165,233,0.08); color: #075985; }
+.jdx-newsview-badge.status-desactivado { background: rgba(245,158,11,0.08); color: #6b3500; }
+
+.jdx-newsview-media { border-radius: 12px; overflow: hidden; max-height: 520px; display: block; }
+.jdx-newsview-img { width: 100%; height: auto; display: block; object-fit: cover; }
+
+.jdx-newsview-content { color: #334155; font-size: 1rem; line-height: 1.7; }
+
+/* Loading / error helpers */
+.jdx-newsview-loading, .jdx-newsview-error {
+  max-width: 720px;
+  margin: 40px auto;
+  text-align: center;
+}

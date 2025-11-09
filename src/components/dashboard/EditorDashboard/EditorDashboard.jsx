@@ -2,28 +2,24 @@
 import React, { useEffect, useState, useCallback } from "react";
 import { getAllNews, updateNewsStatus, deleteNews } from "../../../services/newsService";
 import NewsList from "../../news/NewsList";
+import { usePreviewAuth } from "../../../hooks/usePreviewAuth";
 import "./EditorDashboard.css";
 
 /**
- * EditorDashboard
- * - Listado de noticias (filtro por estado)
- * - Acciones del editor: Publicar, Desactivar, Devolver a Edición
- *
- * Requisitos previos en services/newsService.js:
- * - getAllNews(status) -> devuelve array
- * - updateNewsStatus(id, newStatus)
- * - deleteNews(id) (opcional)
- *
- * Nota: Para una experiencia más robusta, considera integrar react-query
- * para cacheo y manejo de mutaciones.
+ * EditorDashboard (mejorado)
+ * - Permite visualizar sin auth si VITE_DEV_PREVIEW=true (usa hook usePreviewAuth)
+ * - Muestra banner de preview cuando aplica y permite cambiar rol de preview desde localStorage
+ * - Conserva las mismas acciones (publicar/desactivar/eliminar)
  */
+
 export default function EditorDashboard() {
+  const { user, userData, isPreview, setPreviewRole } = usePreviewAuth();
   const [news, setNews] = useState([]);
-  const [filter, setFilter] = useState("Todos"); // Todos | Edición | Terminado | Publicado | Desactivado
+  const [filter, setFilter] = useState("Todos");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [search, setSearch] = useState("");
-  const [refreshKey, setRefreshKey] = useState(0); // para forzar recarga
+  const [refreshKey, setRefreshKey] = useState(0);
 
   const loadNews = useCallback(async () => {
     setLoading(true);
@@ -43,16 +39,13 @@ export default function EditorDashboard() {
     loadNews();
   }, [loadNews, refreshKey]);
 
-  const handleRefresh = () => {
-    setRefreshKey((k) => k + 1);
-  };
+  const handleRefresh = () => setRefreshKey((k) => k + 1);
 
   const handleChangeStatus = async (id, newStatus) => {
     const ok = window.confirm(`¿Confirmas cambiar el estado a "${newStatus}"?`);
     if (!ok) return;
     try {
       await updateNewsStatus(id, newStatus);
-      // refrescar list
       handleRefresh();
     } catch (err) {
       console.error("Error actualizando estado:", err);
@@ -60,11 +53,11 @@ export default function EditorDashboard() {
     }
   };
 
-  const handleDelete = async (id) => {
+  const handleDelete = async (id, imagePath) => {
     const ok = window.confirm("¿Eliminar la noticia? Esta acción no se puede deshacer.");
     if (!ok) return;
     try {
-      await deleteNews(id);
+      await deleteNews(id, imagePath);
       handleRefresh();
     } catch (err) {
       console.error("Error eliminando noticia:", err);
@@ -72,7 +65,6 @@ export default function EditorDashboard() {
     }
   };
 
-  // Filtrado local simple (por título o subtítulo)
   const filteredNews = news.filter((n) => {
     if (!search) return true;
     const q = search.trim().toLowerCase();
@@ -83,6 +75,18 @@ export default function EditorDashboard() {
 
   return (
     <div className="editor-dashboard p-6">
+      {isPreview && (
+        <div className="preview-banner" style={{ marginBottom: 12, padding: 10, borderRadius: 8, background: "#fffbeb", border: "1px solid #fef3c7" }}>
+          <strong>Modo PREVIEW activo</strong> — estás viendo el dashboard sin autenticación.
+          <div style={{ marginTop: 6, display: "flex", gap: 8, alignItems: "center" }}>
+            <small>Role actual: <code style={{ padding: "2px 6px", background: "#fff", borderRadius: 6 }}>{userData?.role}</code></small>
+            <button className="control-btn" onClick={() => { setPreviewRole("reportero"); }}>Ver como Reportero</button>
+            <button className="control-btn" onClick={() => { setPreviewRole("editor"); }}>Ver como Editor</button>
+            <button className="control-btn" onClick={() => { setPreviewRole("admin"); }}>Ver como Admin</button>
+          </div>
+        </div>
+      )}
+
       <div className="editor-header mb-4">
         <h1 className="text-2xl font-bold">Panel del Editor</h1>
         <p className="text-muted">Revisa, publica o desactiva noticias creadas por los reporteros.</p>
@@ -104,21 +108,12 @@ export default function EditorDashboard() {
             <option>Publicado</option>
             <option>Desactivado</option>
           </select>
-          <button onClick={handleRefresh} className="control-btn" aria-label="Refrescar listado">
-            Refrescar
-          </button>
+          <button onClick={handleRefresh} className="control-btn" aria-label="Refrescar listado">Refrescar</button>
         </div>
 
         <div className="control-group">
           <label htmlFor="search" className="sr-only">Buscar</label>
-          <input
-            id="search"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Buscar por título o bajante..."
-            className="control-input"
-            aria-label="Buscar noticias"
-          />
+          <input id="search" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Buscar por título o bajante..." className="control-input" aria-label="Buscar noticias" />
         </div>
       </div>
 
@@ -128,11 +123,8 @@ export default function EditorDashboard() {
         <div className="editor-loading">Cargando noticias…</div>
       ) : (
         <>
-          <div className="editor-list-meta mb-3">
-            <small>{filteredNews.length} resultado(s)</small>
-          </div>
+          <div className="editor-list-meta mb-3"><small>{filteredNews.length} resultado(s)</small></div>
 
-          {/* Pasamos múltiples props (compatibilidad con distintas versiones de NewsList) */}
           <NewsList
             news={filteredNews}
             data={filteredNews}

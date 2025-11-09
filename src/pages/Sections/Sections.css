@@ -1,0 +1,146 @@
+/* src/pages/Sections/Sections.css */
+/* Styles para la página Sections (Secciones)
+   Coherente con la paleta JDX y el resto de estilos del proyecto.
+*/
+
+:root {
+  --jdx-dark: #0f1b2e;
+  --jdx-accent: #00bfae;
+  --muted: #6b7280;
+  --card-bg: #ffffff;
+  --radius-lg: 12px;
+  --shadow-soft: 0 8px 24px rgba(15, 27, 46, 0.06);
+}
+
+/* Contenedor principal (ya tienes utilidades Tailwind; esto añade/ajusta detalles) */
+.sections-page {
+  max-width: 72rem; /* ~1152px, similar a max-w-5xl */
+  margin: 0 auto;
+  padding: 1rem;
+  box-sizing: border-box;
+  color: var(--jdx-dark);
+}
+
+/* Título principal */
+.sections-title {
+  font-size: 1.5rem;
+  font-weight: 800;
+  margin: 0 0 0.75rem 0;
+  color: var(--jdx-dark);
+}
+
+/* Mensaje cuando no hay secciones */
+.sections-empty {
+  color: var(--muted);
+  font-size: 0.95rem;
+  text-align: center;
+  padding: 24px 12px;
+}
+
+/* Grid de tarjetas */
+.sections-grid {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: 1fr;
+}
+
+/* Tarjeta de sección */
+.section-card {
+  background: var(--card-bg);
+  border-radius: var(--radius-lg);
+  padding: 1rem;
+  box-shadow: var(--shadow-soft);
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  transition: transform 160ms ease, box-shadow 160ms ease;
+  border: 1px solid rgba(15, 27, 46, 0.03);
+}
+.section-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 14px 34px rgba(15, 27, 46, 0.08);
+}
+
+/* Cabecera de la tarjeta */
+.section-card h2 {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 800;
+  color: var(--jdx-dark);
+}
+
+/* Descripción */
+.section-desc {
+  margin: 0;
+  font-size: 0.95rem;
+  color: var(--muted);
+  line-height: 1.4;
+}
+
+/* Acciones (botones) */
+.section-actions {
+  margin-top: 0.5rem;
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+/* Botones por defecto */
+.section-btn {
+  padding: 8px 10px;
+  border-radius: 8px;
+  font-weight: 700;
+  border: 1px solid rgba(15, 27, 46, 0.06);
+  background: transparent;
+  cursor: pointer;
+}
+.section-btn:focus {
+  outline: none;
+  box-shadow: 0 0 0 4px rgba(0, 191, 174, 0.08);
+}
+
+/* Botón para editar */
+.section-btn-edit {
+  color: var(--jdx-dark);
+  background: transparent;
+}
+.section-btn-delete {
+  background: #ef4444;
+  color: white;
+  border: none;
+}
+.section-btn-delete:hover { filter: brightness(0.95); }
+
+/* Meta pequeña (conteos, slug, etc) */
+.section-meta {
+  font-size: 0.85rem;
+  color: var(--muted);
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+/* Responsive: 2 columnas en pantallas medianas, 3 en pantallas grandes */
+@media (min-width: 640px) {
+  .sections-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+@media (min-width: 1024px) {
+  .sections-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+/* Accesibilidad: focus visible para enlaces y botones dentro de tarjetas */
+.section-card a:focus,
+.section-card button:focus {
+  outline: 3px solid rgba(0, 191, 174, 0.18);
+  outline-offset: 2px;
+  border-radius: 8px;
+}
+
+/* Pequeños ajustes para consistencia con Tailwind utilities usadas en JSX */
+.sections-container {
+  margin-top: 0.5rem;
+}

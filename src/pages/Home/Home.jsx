@@ -1,4 +1,4 @@
-//src/pages/Home.jsx
+//src/pages/Home/Home.jsx
 import React, { useEffect, useState } from "react";
 import { getAllNews } from "../../services/newsService";
 import { Link } from "react-router-dom";

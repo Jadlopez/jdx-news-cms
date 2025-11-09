@@ -1,4 +1,4 @@
-// src/components/news/NewsList.jsx
+// src/components/news/NewsList/NewsList.jsx
 import React, { useMemo, useState } from "react";
 import { deleteNews, updateNewsStatus } from "../../services/newsService";
 import { useAuth } from "../../contexts/AuthContext";

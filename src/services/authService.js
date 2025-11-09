@@ -1,81 +1,93 @@
 // src/services/authService.js
-import {
-  createUserWithEmailAndPassword,
-  signInWithEmailAndPassword,
-  signOut,
-  sendPasswordResetEmail,
-  GoogleAuthProvider,
-  signInWithPopup,
-} from "firebase/auth";
-import { doc, setDoc, getDoc } from "firebase/firestore";
-import { auth, db } from "../firebase/firebaseConfig";
+// MODO MOCK COMPATIBLE CON TU LOGIN Y REGISTER
 
-/**
- * Registra usuario y crea documento en Firestore
- */
-export async function registerUser(email, password, name, role = "reportero") {
-  const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-  const uid = userCredential.user.uid;
+const USERS_KEY = "mock_users";
+const SESSION_KEY = "mock_session";
 
-  await setDoc(doc(db, "users", uid), {
+function loadUsers() {
+  return JSON.parse(localStorage.getItem(USERS_KEY)) || [];
+}
+
+function saveUsers(users) {
+  localStorage.setItem(USERS_KEY, JSON.stringify(users));
+}
+
+// ✅ REGISTRO (EMAIL + PASSWORD)
+export function registerUser(email, password, name, role = "reportero") {
+  const users = loadUsers();
+
+  if (users.some((u) => u.email === email)) {
+    throw new Error("El correo ya está registrado.");
+  }
+
+  const newUser = {
+    uid: crypto.randomUUID(), // 👈 AHORA SÍ UID !!!
     name,
     email,
+    password,
     role,
     createdAt: new Date().toISOString(),
-  });
+  };
 
-  return userCredential.user;
+  users.push(newUser);
+  saveUsers(users);
+  localStorage.setItem(SESSION_KEY, JSON.stringify(newUser));
+
+  return newUser;
 }
 
-/**
- * Inicia sesión con email/password
- * Devuelve UserCredential (como lo hace Firebase)
- */
-export async function loginUser(email, password) {
-  return signInWithEmailAndPassword(auth, email, password);
+// ✅ LOGIN
+export function loginUser(email, password) {
+  const users = loadUsers();
+  const user = users.find((u) => u.email === email && u.password === password);
+
+  if (!user) {
+    throw new Error("Correo o contraseña incorrectos.");
+  }
+
+  localStorage.setItem(SESSION_KEY, JSON.stringify(user));
+  return user;
 }
 
-/**
- * Inicia sesión con Google (popup)
- * Devuelve UserCredential
- */
-export async function signInWithGoogle() {
-  const provider = new GoogleAuthProvider();
-  // Puedes personalizar scopes o parámetros: provider.addScope(...)
-  const result = await signInWithPopup(auth, provider);
-  return result; // { user, ... }
+// ✅ LOGIN CON GOOGLE (SIMULADO)
+export function signInWithGoogle() {
+  const newUser = {
+    uid: crypto.randomUUID(),
+    name: "Usuario Google",
+    email: "googleuser@example.com",
+    role: "reportero",
+    createdAt: new Date().toISOString(),
+  };
+
+  localStorage.setItem(SESSION_KEY, JSON.stringify(newUser));
+  return newUser;
 }
 
-/**
- * Cierra sesión
- */
-export async function logoutUser() {
-  return signOut(auth);
+// ✅ OBTENER PERFIL
+export function getUserData(uid) {
+  const users = loadUsers();
+  return users.find((u) => u.uid === uid) || null;
 }
 
-/**
- * Envía correo para restablecer contraseña
- */
-export async function resetPassword(email) {
-  return sendPasswordResetEmail(auth, email);
+// ✅ GUARDAR PERFIL
+export function saveUserData(uid, data) {
+  const users = loadUsers();
+  const index = users.findIndex((u) => u.uid === uid);
+
+  if (index === -1) return null;
+
+  users[index] = { ...users[index], ...data };
+  saveUsers(users);
+  localStorage.setItem(SESSION_KEY, JSON.stringify(users[index]));
+  return users[index];
 }
 
-/**
- * Obtiene datos del usuario desde Firestore
- */
-export async function getUserData(uid) {
-  const ref = doc(db, "users", uid);
-  const snap = await getDoc(ref);
-  return snap.exists() ? snap.data() : null;
+// ✅ LOGOUT
+export function logoutUser() {
+  localStorage.removeItem(SESSION_KEY);
 }
 
-/**
- * Guarda o actualiza datos del usuario en Firestore (merge)
- * Útil para registrar perfiles cuando se autentican por OAuth (Google) o
- * para completar perfil después de un registro por email/password.
- */
-export async function saveUserData(uid, data) {
-  const ref = doc(db, "users", uid);
-  // Usamos setDoc con merge para no sobrescribir campos existentes
-  return setDoc(ref, { ...data, updatedAt: new Date().toISOString() }, { merge: true });
+// ✅ OBTENER USUARIO LOGUEADO
+export function getCurrentUser() {
+  return JSON.parse(localStorage.getItem(SESSION_KEY)) || null;
 }

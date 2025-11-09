@@ -1,172 +1,45 @@
 /* src/components/auth/Login/Login.css */
-/* Mantengo la mayoría de tu CSS, solo ajusté focus y contraste para accesibilidad y coherencia con tokens globales */
-
-/* Reuso variables globales si existen, sino defino localmente */
+/* Mantiene estilo visual coherente con Tailwind, usando variables */
 :root {
-  --jdx-accent: #00bfae;
-  --jdx-dark: #0f1b2e;
+  --jdx-accent: #14b8a6;
+  --jdx-dark: #0f172a;
   --muted: #6b7280;
-  --bg: #f3f6f9;
-  --card: #ffffff;
-  --radius-lg: 14px;
+  --bg: #f9fafb;
   --radius-md: 10px;
 }
 
-/* Página: fondo y centrado */
-.login-page {
-  min-height: 100vh;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: linear-gradient(180deg, #f7fafc 0%, #eef6f8 100%);
-  padding: 24px;
-  box-sizing: border-box;
-  font-family: Inter, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-  color: var(--jdx-dark);
+/* Spinner */
+.spinner {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: 4px solid rgba(15,27,46,0.08);
+  border-top-color: var(--jdx-accent);
+  animation: spin 0.9s linear infinite;
 }
+@keyframes spin { to { transform: rotate(360deg); } }
 
-/* Wrapper fija ancho máximo */
-.login-wrapper {
-  width: 100%;
-  max-width: 420px;
-}
-
-/* Card */
-[data-jdx-login].login-card,
-.login-card {
-  background: var(--card);
-  border-radius: var(--radius-lg);
-  padding: 20px;
-  box-shadow: 0 10px 30px rgba(15, 27, 46, 0.08);
-  position: relative;
-  overflow: hidden;
-}
-
-/* Header */
-.login-header {
-  display: flex;
-  gap: 12px;
-  align-items: center;
-  margin-bottom: 14px;
-}
-.login-logo { width: 48px; height: 48px; object-fit: contain; border-radius: 8px; background: rgba(0,0,0,0.03); padding: 4px; }
-.login-title { margin: 0; font-size: 1.05rem; font-weight: 700; color: var(--jdx-dark); }
-.login-sub { margin: 0; color: var(--muted); font-size: 0.9rem; }
-
-/* Error */
-.login-error { background: #fff2f2; color: #8b1e1e; border: 1px solid #f9dede; padding: 10px; border-radius: 8px; margin-bottom: 12px; font-size: 0.925rem; }
-
-/* Labels & inputs */
-label { display: block; margin-bottom: 6px; font-weight: 600; color: #374151; font-size: 0.9rem; }
-.login-input {
-  width: 100%;
-  padding: 10px 12px;
-  border-radius: var(--radius-md);
-  border: 1px solid #e6e9ef;
-  background: #fff;
-  font-size: 0.95rem;
-  color: var(--jdx-dark);
-  margin-bottom: 12px;
-  transition: box-shadow .12s ease, border-color .12s ease;
-}
-.login-input:focus {
-  outline: none;
-  border-color: rgba(0,191,174,0.7);
-  box-shadow: 0 0 0 6px rgba(0,191,174,0.06);
-  border-width: 1.5px;
-  /* Mejor contraste en foco para accesibilidad */
-}
-
-/* password row (input + small icon button) */
-.login-password-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-.login-input-password { flex: 1; margin-bottom: 0; }
+/* Botón ícono */
 .btn-icon {
   background: transparent;
   border: none;
-  font-size: 16px;
-  padding: 8px;
   cursor: pointer;
-  border-radius: 8px;
-  color: var(--muted);
+  transition: color 0.2s;
 }
-.btn-icon:disabled { opacity: 0.6; cursor: not-allowed; }
+.btn-icon:hover { color: var(--jdx-accent); }
 
-/* row: remember + forgot */
-.login-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin: 12px 0 16px;
-  gap: 12px;
-  color: var(--muted);
+/* Ajustes para foco */
+input:focus, button:focus {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(20,184,166,0.25);
+}
+
+/* Errores */
+.login-error {
   font-size: 0.9rem;
 }
-.checkbox-label { display: inline-flex; align-items: center; gap: 8px; cursor: pointer; user-select: none; }
-.link-muted { color: var(--muted); text-decoration: none; }
-.link-muted:hover { text-decoration: underline; }
 
-/* Buttons */
-.btn-primary {
-  width: 100%;
-  padding: 11px 14px;
-  background: var(--jdx-accent);
-  color: white;
-  border: none;
-  border-radius: 10px;
-  font-weight: 700;
-  font-size: 0.96rem;
-  cursor: pointer;
-  transition: transform .08s ease, box-shadow .12s ease;
-}
-.btn-primary:active { transform: translateY(1px); }
-.btn-primary:disabled { opacity: 0.65; cursor: not-allowed; }
-
-/* Divider */
-.login-divider { display: flex; align-items: center; gap: 12px; margin: 18px 0; }
-.login-divider::before, .login-divider::after { content: ""; flex: 1; height: 1px; background: #eef2f7; }
-.login-divider-content { font-size: 0.88rem; color: var(--muted); padding: 0 6px; }
-
-/* Google button */
-.btn-google {
-  width: 100%;
-  padding: 10px 12px;
-  border-radius: 10px;
-  border: 1px solid #e6e9ef;
-  background: white;
-  display: inline-flex;
-  gap: 10px;
-  align-items: center;
-  justify-content: center;
-  font-weight: 600;
-  color: #111827;
-  cursor: pointer;
-}
-.btn-google svg { display: inline-block; vertical-align: middle; }
-
-/* Footer */
-.login-footer { margin-top: 14px; text-align: center; font-size: 0.9rem; color: var(--muted); }
-.link-strong { color: var(--jdx-accent); text-decoration: none; font-weight: 700; }
-.link-strong:hover { text-decoration: underline; }
-
-/* Overlay spinner */
-.login-overlay { position: absolute; inset: 0; background: rgba(255,255,255,0.75); display:flex; align-items:center; justify-content:center; z-index: 40; }
-.spinner { width: 44px; height: 44px; border-radius:50%; border: 4px solid rgba(15,27,46,0.08); border-top-color: var(--jdx-accent); animation: spin 0.9s linear infinite; }
-@keyframes spin { to { transform: rotate(360deg); } }
-
-/* Responsive */
-@media (min-width: 768px) {
-  .login-wrapper { max-width: 520px; }
-  .login-card { padding: 28px; }
-  .login-title { font-size: 1.15rem; }
-  .login-sub { font-size: 0.95rem; }
-}
-
-/* Focus visible global helper (para accesibilidad) */
-.login-card :focus {
-  box-shadow: 0 0 0 4px rgba(0,191,174,0.08);
-  outline: none;
+/* Divider visual */
+.login-divider-content {
+  font-weight: 500;
 }
