@@ -49,14 +49,21 @@ export default function Dashboard() {
       );
       return;
     }
-    if (userData.role === "editor") {
-      navigate("/dashboard/editor");
-    } else if (userData.role === "reportero") {
-      navigate("/dashboard/reportero");
-    } else {
-      setError(
-        "No tienes un rol válido para acceder a los paneles específicos."
-      );
+
+    switch (userData.role) {
+      case "admin":
+        navigate("/dashboard/admin");
+        break;
+      case "editor":
+        navigate("/dashboard/editor");
+        break;
+      case "reportero":
+        navigate("/dashboard/reportero");
+        break;
+      default:
+        setError(
+          "No tienes un rol válido para acceder a los paneles específicos."
+        );
     }
   };
 

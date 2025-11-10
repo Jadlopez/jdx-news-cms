@@ -23,6 +23,9 @@ const ReporterDashboard = lazy(() =>
 const EditorDashboard = lazy(() =>
   import("./components/dashboard/EditorDashboard/EditorDashboard")
 );
+const AdminDashboard = lazy(() =>
+  import("./components/dashboard/AdminDashboard/AdminDashboard")
+);
 const NotFound = lazy(() => import("./pages/NotFound/NotFound"));
 
 export default function App() {
@@ -60,6 +63,10 @@ export default function App() {
 
               <Route element={<PrivateRoute allowedRoles={["editor"]} />}>
                 <Route path="/dashboard/editor" element={<EditorDashboard />} />
+              </Route>
+
+              <Route element={<PrivateRoute allowedRoles={["admin"]} />}>
+                <Route path="/dashboard/admin" element={<AdminDashboard />} />
               </Route>
 
               <Route
