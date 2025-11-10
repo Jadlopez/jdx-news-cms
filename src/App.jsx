@@ -6,6 +6,7 @@ import Header from "./components/layout/Header/Header";
 import Footer from "./components/layout/Footer/Footer";
 import PrivateRoute from "./components/layout/PrivateRoute/PrivateRoute";
 
+
 // Lazy-loaded pages
 const Home = lazy(() => import("./pages/Home/Home"));
 const NewsView = lazy(() => import("./components/news/NewsView/NewsView"));
