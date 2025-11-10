@@ -25,9 +25,8 @@ const AdminDashboard = lazy(() =>
   import("./components/dashboard/AdminDashboard/AdminDashboard")
 );
 
-// Profile page (nuevo)
+// Profile page (opcional, si la tienes)
 const Profile = lazy(() => import("./pages/Profile/Profile"));
-
 const NotFound = lazy(() => import("./pages/NotFound/NotFound"));
 
 export default function App() {
@@ -36,33 +35,29 @@ export default function App() {
       <Header />
 
       <main className="flex-1">
-        <Suspense
-          fallback={<div className="text-center mt-10">Cargando...</div>}
-        >
+        <Suspense fallback={<div className="text-center mt-10">Cargando...</div>}>
           <Routes>
             {/* Rutas públicas */}
             <Route path="/" element={<Home />} />
+            {/* Aceptamos ambos prefijos: /noticia/:id y /news/:id */}
             <Route path="/noticia/:id" element={<NewsView />} />
+            <Route path="/news/:id" element={<NewsView />} />
+            <Route path="/noticia" element={<NotFound />} />
+            <Route path="/noticia/*" element={<NotFound />} />
+
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
 
             {/* Protegido: requiere autenticación y roles permitidos */}
-            <Route
-              element={
-                <PrivateRoute allowedRoles={["reportero", "editor", "admin"]} />
-              }
-            >
+            <Route element={<PrivateRoute allowedRoles={["reportero", "editor", "admin"]} />}>
               <Route path="/dashboard" element={<Dashboard />} />
 
-              {/* Ruta de perfil accesible para cualquier usuario autenticado */}
+              {/* Perfil accesible a cualquier usuario autenticado */}
               <Route path="/perfil" element={<Profile />} />
 
               {/* Rutas con control de rol */}
               <Route element={<PrivateRoute allowedRoles={["reportero"]} />}>
-                <Route
-                  path="/dashboard/reportero"
-                  element={<ReporterDashboard />}
-                />
+                <Route path="/dashboard/reportero" element={<ReporterDashboard />} />
               </Route>
 
               <Route element={<PrivateRoute allowedRoles={["editor"]} />}>
@@ -73,14 +68,9 @@ export default function App() {
                 <Route path="/dashboard/admin" element={<AdminDashboard />} />
               </Route>
 
-              <Route
-                path="/dashboard/no-autorizado"
-                element={
-                  <div className="text-center text-red-600 mt-10">
-                    No tienes permisos
-                  </div>
-                }
-              />
+              <Route path="/dashboard/no-autorizado" element={
+                <div className="text-center text-red-600 mt-10">No tienes permisos</div>
+              } />
             </Route>
 
             {/* 404 */}

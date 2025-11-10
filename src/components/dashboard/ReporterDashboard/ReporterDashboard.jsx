@@ -12,12 +12,21 @@ export default function ReporterDashboard() {
   const [editing, setEditing] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  const [showForm, setShowForm] = useState(true);
+
+  // ✅ Mantener estado del formulario entre pestañas
+  const [showForm, setShowForm] = useState(() => {
+    return localStorage.getItem("reporter_showForm") === "true";
+  });
+
+  useEffect(() => {
+    localStorage.setItem("reporter_showForm", showForm);
+  }, [showForm]);
 
   const loadNews = useCallback(async () => {
     if (!user?.id) return;
     setLoading(true);
     setError(null);
+
     try {
       const list = await getNewsByAuthor(user.id);
       setNews(Array.isArray(list) ? list : []);
@@ -44,6 +53,7 @@ export default function ReporterDashboard() {
       "¿Eliminar esta noticia? Esta acción no se puede deshacer."
     );
     if (!ok) return;
+
     try {
       await deleteNews(id, imagePath);
       await loadNews();
@@ -64,18 +74,19 @@ export default function ReporterDashboard() {
             Usuario: {userData?.email ?? user?.email ?? "—"}
           </p>
         </div>
-        <div>
-          <button
-            className="jdx-btn jdx-btn-outline"
-            onClick={() => {
-              setShowForm((s) => !s);
-              if (!showForm) setEditing(null);
-            }}
-            aria-pressed={showForm}
-          >
-            {showForm ? "Ocultar formulario" : "Crear noticia"}
-          </button>
-        </div>
+
+        <button
+          className="jdx-btn jdx-btn-outline"
+          onClick={() => {
+            setShowForm((prev) => {
+              const newValue = !prev;
+              if (newValue === false) setEditing(null);
+              return newValue;
+            });
+          }}
+        >
+          {showForm ? "Ocultar formulario" : "Crear noticia"}
+        </button>
       </header>
 
       {showForm && (
@@ -87,15 +98,6 @@ export default function ReporterDashboard() {
           }}
         />
       )}
-
-      <div className="my-4">
-        <button
-          className="px-3 py-2 bg-gray-700 text-white rounded"
-          onClick={() => setShowForm(!showForm)}
-        >
-          {showForm ? "Ocultar formulario" : "Crear noticia"}
-        </button>
-      </div>
 
       {error && (
         <div className="p-3 bg-red-50 text-red-600 border border-red-200 rounded">
