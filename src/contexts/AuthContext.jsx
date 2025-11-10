@@ -35,6 +35,12 @@ export function AuthProvider({ children }) {
     }
   };
 
+  useEffect(() => {
+    console.log("[AuthContext] user:", user);
+    console.log("[AuthContext] userData:", userData);
+    console.log("[AuthContext] loading:", loading);
+  }, [user, userData, loading]);
+
   // refreshUserData expuesto para que componentes actualicen el perfil
   const refreshUserData = async () => {
     try {
@@ -51,15 +57,14 @@ export function AuthProvider({ children }) {
       if (mountedRef.current) {
         setUser(currentUser);
         setUserData(
-          profile ??
-            {
-              id: currentUser.id,
-              email: currentUser.email,
-              name: currentUser.user_metadata?.name ?? null,
-              role: null,
-              profileMissing: true,
-              created_at: new Date().toISOString(),
-            }
+          profile ?? {
+            id: currentUser.id,
+            email: currentUser.email,
+            name: currentUser.user_metadata?.name ?? null,
+            role: null,
+            profileMissing: true,
+            created_at: new Date().toISOString(),
+          }
         );
       }
     } catch (err) {
@@ -77,7 +82,8 @@ export function AuthProvider({ children }) {
           data: { session },
           error: sessionError,
         } = await supabase.auth.getSession();
-        if (sessionError) console.debug("AuthContext.getSession error:", sessionError);
+        if (sessionError)
+          console.debug("AuthContext.getSession error:", sessionError);
 
         const currentUser = session?.user ?? null;
         if (!mountedRef.current) return;
