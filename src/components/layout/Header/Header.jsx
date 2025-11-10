@@ -7,7 +7,7 @@ import logo from "../../../assets/logo.png";
 import "./Header.css";
 
 export default function Header() {
-  const { user, logout } = useAuth() ?? {};
+  const { user, userData, logout } = useAuth() ?? {};
   const navigate = useNavigate();
   const location = useLocation();
   const [open, setOpen] = useState(false);
@@ -31,15 +31,12 @@ export default function Header() {
 
   const handleLogout = async () => {
     try {
-      console.debug("Header.handleLogout - calling logout");
       if (typeof logout === "function") {
         await logout();
       } else {
-        // Fallback: call supabase directly
         const { error } = await supabase.auth.signOut();
         if (error) throw error;
       }
-      console.debug("Header.handleLogout - logout resolved");
       navigate("/login");
     } catch (error) {
       console.error("Error al cerrar sesión:", error);
@@ -87,6 +84,17 @@ export default function Header() {
               >
                 Panel
               </Link>
+
+              {/* Enlace al perfil del usuario autenticado */}
+              <Link
+                to="/perfil"
+                className="jdx-nav-link"
+                onClick={() => setOpen(false)}
+                aria-label="Mi perfil"
+              >
+                Mi perfil
+              </Link>
+
               <button
                 className="jdx-nav-link jdx-logout"
                 onClick={() => {

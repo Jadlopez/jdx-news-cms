@@ -18,40 +18,75 @@ export function AuthProvider({ children }) {
   const [loading, setLoading] = useState(true);
   const mountedRef = useRef(true);
 
+  // Helper para obtener perfil desde la tabla 'users'
+  const fetchUserData = async (uid) => {
+    if (!uid) return null;
+    try {
+      const { data: profile, error } = await supabase
+        .from("users")
+        .select("*")
+        .eq("id", uid)
+        .maybeSingle();
+      if (error) throw error;
+      return profile ?? null;
+    } catch (err) {
+      console.error("fetchUserData error:", err);
+      return null;
+    }
+  };
+
+  // refreshUserData expuesto para que componentes actualicen el perfil
+  const refreshUserData = async () => {
+    try {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      const currentUser = session?.user ?? null;
+      if (!currentUser) {
+        setUser(null);
+        setUserData(null);
+        return;
+      }
+      const profile = await fetchUserData(currentUser.id);
+      if (mountedRef.current) {
+        setUser(currentUser);
+        setUserData(
+          profile ??
+            {
+              id: currentUser.id,
+              email: currentUser.email,
+              name: currentUser.user_metadata?.name ?? null,
+              role: null,
+              profileMissing: true,
+              created_at: new Date().toISOString(),
+            }
+        );
+      }
+    } catch (err) {
+      console.error("refreshUserData failed:", err);
+    }
+  };
+
   useEffect(() => {
-    console.log("Iniciando AuthContext...");
     mountedRef.current = true;
     setLoading(true);
 
-    // First, try to get current user synchronously so page refreshes have immediate state
     (async () => {
-      console.log("Verificando sesión inicial...");
       try {
         const {
           data: { session },
           error: sessionError,
         } = await supabase.auth.getSession();
-        if (sessionError)
-          console.debug("AuthContext.getSession error:", sessionError);
+        if (sessionError) console.debug("AuthContext.getSession error:", sessionError);
 
         const currentUser = session?.user ?? null;
-        console.debug("AuthContext.getSession - currentUser:", currentUser);
-
         if (!mountedRef.current) return;
         setUser(currentUser);
         setUserData(null);
 
         if (currentUser) {
-          const { data: profile, error } = await supabase
-            .from("users")
-            .select("*")
-            .eq("id", currentUser.id)
-            .single();
-
+          const profile = await fetchUserData(currentUser.id);
           if (!mountedRef.current) return;
-
-          if (error) throw error;
-
           if (profile) {
             setUserData(profile);
           } else {
@@ -72,20 +107,9 @@ export function AuthProvider({ children }) {
       }
     })();
 
-    // Subscribe to auth changes to react to sign in / sign out events
-    console.log("Configurando suscripción a cambios de autenticación...");
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((event, session) => {
-      console.log("Cambio de estado de autenticación detectado:", {
-        event,
-        hasSession: !!session,
-      });
-      console.debug(
-        "AuthContext.onAuthStateChange event:",
-        event,
-        session?.user ?? null
-      );
       if (!mountedRef.current) return;
 
       const currentUser = session?.user ?? null;
@@ -95,19 +119,9 @@ export function AuthProvider({ children }) {
       (async () => {
         if (currentUser) {
           try {
-            const { data: profile, error } = await supabase
-              .from("users")
-              .select("*")
-              .eq("id", currentUser.id)
-              .single();
-
+            const profile = await fetchUserData(currentUser.id);
             if (!mountedRef.current) return;
-
-            if (error) throw error;
-
             if (profile) setUserData(profile);
-            // Igual que en la inicialización: si no hay perfil en la tabla,
-            // no asignamos un rol por defecto.
             else
               setUserData({
                 id: currentUser.id,
@@ -121,7 +135,6 @@ export function AuthProvider({ children }) {
             console.error("Error fetching user data (onAuthStateChange):", err);
           }
         }
-
         if (mountedRef.current) setLoading(false);
       })();
     });
@@ -134,25 +147,8 @@ export function AuthProvider({ children }) {
 
   const logout = async () => {
     try {
-      // Debug: log user before sign out
-      try {
-        const { data: before } = await supabase.auth.getUser();
-        console.debug("AuthContext.logout - before user:", before);
-      } catch (e) {
-        console.debug("AuthContext.logout - getUser before failed:", e);
-      }
-
       const { error } = await supabase.auth.signOut();
       if (error) throw error;
-
-      // Debug: log user after sign out
-      try {
-        const { data: after } = await supabase.auth.getUser();
-        console.debug("AuthContext.logout - after user:", after);
-      } catch (e) {
-        console.debug("AuthContext.logout - getUser after failed:", e);
-      }
-
       setUser(null);
       setUserData(null);
       setAuthError(null);
@@ -167,12 +163,11 @@ export function AuthProvider({ children }) {
     userData,
     loading,
     setUserData,
-    // Exponer setUser para que componentes puedan sincronizar el estado de
-    // autenticación inmediatamente después de operaciones de login/registro.
     setUser,
     logout,
     authError,
     setAuthError,
+    refreshUserData, // <-- expuesto
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

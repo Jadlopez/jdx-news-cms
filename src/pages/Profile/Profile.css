@@ -1,0 +1,11 @@
+:root {
+  --jdx-dark: #0f1b2e;
+  --jdx-accent: #00bfae;
+}
+
+.profile-page { color: var(--jdx-dark); }
+
+.profile-page input[type="file"] { display: none; }
+
+/* pequeñas mejoras visuales */
+.profile-page .shadow-sm { box-shadow: 0 8px 24px rgba(15,27,46,0.04); }

@@ -24,6 +24,10 @@ const EditorDashboard = lazy(() =>
 const AdminDashboard = lazy(() =>
   import("./components/dashboard/AdminDashboard/AdminDashboard")
 );
+
+// Profile page (nuevo)
+const Profile = lazy(() => import("./pages/Profile/Profile"));
+
 const NotFound = lazy(() => import("./pages/NotFound/NotFound"));
 
 export default function App() {
@@ -49,6 +53,9 @@ export default function App() {
               }
             >
               <Route path="/dashboard" element={<Dashboard />} />
+
+              {/* Ruta de perfil accesible para cualquier usuario autenticado */}
+              <Route path="/perfil" element={<Profile />} />
 
               {/* Rutas con control de rol */}
               <Route element={<PrivateRoute allowedRoles={["reportero"]} />}>
