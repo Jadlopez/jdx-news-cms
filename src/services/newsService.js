@@ -76,6 +76,7 @@ export async function getAllNews(status = null) {
   if (error) throw error;
   return Array.isArray(data) ? data.map(mapNewsRow) : [];
 }
+// src/services/newsService.js
 
 export async function getNewsById(id) {
   const { data, error } = await supabase
@@ -83,8 +84,9 @@ export async function getNewsById(id) {
     .select("*")
     .eq("id", id)
     .single();
+
   if (error) throw error;
-  return mapNewsRow(data);
+  return data;
 }
 
 export async function updateNews(id, data) {

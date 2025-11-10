@@ -27,49 +27,46 @@ export function AuthProvider({ children }) {
     (async () => {
       console.log("Verificando sesión inicial...");
       try {
-        const { data: userDataResp, error: userErr } =
-          await supabase.auth.getUser();
-        if (userErr) console.debug("AuthContext.getUser error:", userErr);
-        const currentUser = userDataResp?.user ?? null;
-        console.debug("AuthContext.getUser - currentUser:", currentUser);
+        const {
+          data: { session },
+          error: sessionError,
+        } = await supabase.auth.getSession();
+        if (sessionError)
+          console.debug("AuthContext.getSession error:", sessionError);
+
+        const currentUser = session?.user ?? null;
+        console.debug("AuthContext.getSession - currentUser:", currentUser);
+
         if (!mountedRef.current) return;
         setUser(currentUser);
         setUserData(null);
 
         if (currentUser) {
-          try {
-            const { data: profile, error } = await supabase
-              .from("users")
-              .select("*")
-              .eq("id", currentUser.id)
-              .single();
+          const { data: profile, error } = await supabase
+            .from("users")
+            .select("*")
+            .eq("id", currentUser.id)
+            .single();
 
-            if (!mountedRef.current) return;
+          if (!mountedRef.current) return;
 
-            if (error) throw error;
+          if (error) throw error;
 
-            if (profile) {
-              setUserData(profile);
-            } else {
-              // No hay perfil en la tabla `users` — no asignamos un rol por defecto
-              // para evitar dar permisos involuntarios. Marcamos como perfil
-              // incompleto (role = null) para que la UI/roteo lo traten como
-              // usuario que necesita completar perfil o esperar aprobación.
-              setUserData({
-                id: currentUser.id,
-                email: currentUser.email,
-                name: currentUser.user_metadata?.name ?? null,
-                role: null,
-                profileMissing: true,
-                created_at: new Date().toISOString(),
-              });
-            }
-          } catch (err) {
-            console.error("Error fetching user data:", err);
+          if (profile) {
+            setUserData(profile);
+          } else {
+            setUserData({
+              id: currentUser.id,
+              email: currentUser.email,
+              name: currentUser.user_metadata?.name ?? null,
+              role: null,
+              profileMissing: true,
+              created_at: new Date().toISOString(),
+            });
           }
         }
       } catch (err) {
-        console.error("AuthContext init getUser failed:", err);
+        console.error("AuthContext init getSession failed:", err);
       } finally {
         if (mountedRef.current) setLoading(false);
       }

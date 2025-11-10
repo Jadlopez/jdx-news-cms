@@ -1,169 +1,60 @@
-// src/components/auth/Login/Login.jsx
-import React, { useEffect, useRef, useState } from "react";
-import { Link, useLocation, useNavigate } from "react-router-dom";
-import {
-  loginUser,
-  getUserData,
-  signInWithGoogle,
-} from "../../../services/authService";
-import { useAuth } from "../../../contexts/AuthContext";
-import logo from "../../../assets/logo.png";
-import "./Login.css";
-
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import * as z from "zod";
+import React, { useState } from "react";
+import { supabase } from "../../../supabase/client";
+import { Link, useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
-
-const schema = z.object({
-  email: z
-    .string()
-    .min(1, "El correo es requerido.")
-    .email("Ingresa un correo válido."),
-  password: z
-    .string()
-    .min(6, "La contraseña debe tener al menos 6 caracteres."),
-  remember: z.boolean().optional(),
-});
+import "./Login.css"; // puedes mantenerlo si tienes estilos personalizados
 
 export default function Login() {
-  const { setUserData, setUser } = useAuth() ?? {};
-  const navigate = useNavigate();
-  const location = useLocation();
-  const redirectTo = location.state?.from?.pathname ?? "/dashboard";
-
-  const isMounted = useRef(true);
+  const [status, setStatus] = useState("idle");
+  const [form, setForm] = useState({ email: "", password: "" });
   const [showPassword, setShowPassword] = useState(false);
-  useEffect(
-    () => () => {
-      isMounted.current = false;
-    },
-    []
-  );
+  const navigate = useNavigate();
 
-  const {
-    register,
-    handleSubmit,
-    setValue,
-    formState: { errors, isSubmitting },
-  } = useForm({
-    resolver: zodResolver(schema),
-    defaultValues: { email: "", password: "", remember: true },
-  });
-
-  useEffect(() => {
-    const providerUser = location.state?.providerUser;
-    if (providerUser?.email) setValue("email", providerUser.email);
-  }, [location.state, setValue]);
-
-  const normalizeUser = (u) => {
-    if (!u) return null;
-    if (u.user) return u.user;
-    if (u.data?.user) return u.data.user;
-    return u;
+  const handleChange = (e) => {
+    setForm({
+      ...form,
+      [e.target.name]: e.target.value,
+    });
   };
 
-  const friendlyError = (err) => {
-    const msg = (err?.message || String(err || "")).toLowerCase();
-    if (
-      msg.includes("wrong-password") ||
-      msg.includes("invalid login") ||
-      msg.includes("invalid credentials")
-    )
-      return "Correo o contraseña incorrectos.";
-    if (msg.includes("user not found") || msg.includes("no user"))
-      return "No existe una cuenta con ese correo.";
-    if (msg.includes("invalid email")) return "Correo inválido.";
-    if (msg.includes("too many requests") || msg.includes("too many"))
-      return "Demasiados intentos fallidos. Intenta más tarde.";
-    if (err?.message) return err.message;
-    return "Error al iniciar sesión. Intenta nuevamente.";
-  };
+  const handleLogin = async (e) => {
+    e.preventDefault();
+    setStatus("loading");
+    toast.dismiss();
 
-  const onSubmit = async (values) => {
-    if (!isMounted.current) return;
-    if (isSubmitting) return; // Evitar múltiples envíos
     try {
-      console.log("Ejecutando login con valores:", values);
-      toast.dismiss();
-      const t = toast.loading("Iniciando sesión...");
-
-      console.log("Llamando a loginUser...");
-      const raw = await loginUser(values.email.trim(), values.password);
-      console.log("Respuesta de loginUser:", raw);
-
-      const user = normalizeUser(raw);
-      // Asegurar que el AuthContext tenga el objeto `user` inmediatamente
-      // para evitar redirecciones prematuras desde PrivateRoute.
-      if (typeof setUser === "function") setUser(user);
-      const uid = user?.id ?? user?.uid;
-      if (!uid)
-        throw new Error("No se obtuvo id del proveedor de autenticación.");
-
-      const data = await getUserData(uid).catch(() => null);
-      setUserData?.(data ?? { id: uid, email: user.email });
-      toast.success("Sesión iniciada", { id: t });
-
-      if (redirectTo && !["/login", "/register"].includes(redirectTo)) {
-        navigate(redirectTo, { replace: true });
+      const { email, password } = form;
+      if (!email || !password) {
+        toast.error("Por favor completa todos los campos");
+        setStatus("idle");
         return;
       }
 
-      navigate(
-        data?.role === "editor" ? "/dashboard/editor" : "/dashboard/reportero",
-        { replace: true }
-      );
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+
+      if (error) throw error;
+      if (!data?.user) throw new Error("No se pudo iniciar sesión.");
+
+      toast.success("Bienvenido/a");
+      navigate("/dashboard");
     } catch (err) {
-      console.error("Login error:", err);
-      const friendly = friendlyError(err);
-      toast.dismiss();
-      toast.error(friendly);
+      console.error("❌ Error al iniciar sesión:", err);
+      toast.error(err.message || "Error al iniciar sesión");
+    } finally {
+      setStatus("idle");
     }
   };
 
-  const handleGoogleSignIn = async () => {
-    try {
-      toast.dismiss();
-      const t = toast.loading("Accediendo con Google...");
-      const raw = await signInWithGoogle();
-      const url = raw?.url || raw?.data?.url;
-      if (url) {
-        window.location.href = url;
-        return;
-      }
-
-      const user = normalizeUser(raw);
-      if (typeof setUser === "function") setUser(user);
-      const uid = user?.id ?? user?.uid;
-      if (!uid) throw new Error("No se obtuvo información del proveedor.");
-      const data = await getUserData(uid).catch(() => null);
-      setUserData?.(data);
-      toast.success("Bienvenido/a", { id: t });
-      navigate(
-        data?.role === "editor" ? "/dashboard/editor" : "/dashboard/reportero",
-        { replace: true }
-      );
-    } catch (err) {
-      console.error("Google sign-in error:", err);
-      toast.dismiss();
-      toast.error(friendlyError(err));
-    }
-  };
-
-  const isBusy = isSubmitting;
+  const isBusy = status === "loading";
 
   return (
     <div className="login-page bg-gradient-to-b from-gray-50 to-gray-100 flex items-center justify-center min-h-screen p-6">
       <div className="login-wrapper w-full max-w-md">
         <form
-          data-jdx-login
-          onSubmit={handleSubmit((values) => {
-            console.log("Formulario de login enviado con valores:", values);
-            return onSubmit(values).catch((error) => {
-              console.error("Error en el envío del formulario:", error);
-              throw error; // Re-lanzar el error para que react-hook-form lo maneje
-            });
-          })}
+          onSubmit={handleLogin}
           className="login-card bg-white rounded-2xl shadow-lg p-6 relative overflow-hidden"
           aria-busy={isBusy}
         >
@@ -175,8 +66,8 @@ export default function Login() {
 
           <div className="login-header flex items-center gap-3 mb-4">
             <img
-              src={logo}
-              alt="JDX News"
+              src={"src/assets/logo.png"}
+              alt="App Logo"
               className="login-logo w-12 h-12 object-contain rounded-lg"
             />
             <div>
@@ -184,21 +75,12 @@ export default function Login() {
                 Inicia sesión
               </h1>
               <p className="login-sub text-gray-500 text-sm">
-                Accede al panel de administración
+                Accede al panel de tu aplicación
               </p>
             </div>
           </div>
 
-          {/* mostrar mensajes de validación del formulario */}
-          {errors.root && (
-            <div
-              role="alert"
-              className="login-error bg-red-50 border border-red-200 text-red-700 rounded-md p-3 mb-3 text-sm"
-            >
-              {errors.root.message}
-            </div>
-          )}
-
+          {/* EMAIL */}
           <label
             htmlFor="email"
             className="block font-semibold text-gray-700 mb-1"
@@ -207,118 +89,69 @@ export default function Login() {
           </label>
           <input
             id="email"
+            name="email"
             type="email"
-            placeholder="tu@ejemplo.com"
+            value={form.email}
+            onChange={handleChange}
             disabled={isBusy}
-            className="login-input w-full border border-gray-300 rounded-md p-2.5 focus:ring-2 focus:ring-teal-400 outline-none mb-3"
-            {...register("email")}
+            placeholder="tu@ejemplo.com"
+            className="w-full border border-gray-300 rounded-md p-2.5 focus:ring-2 focus:ring-teal-400 outline-none mb-3"
+            required
           />
-          {errors.email && (
-            <p className="text-sm text-red-600 mb-2">{errors.email.message}</p>
-          )}
 
+          {/* PASSWORD */}
           <label
             htmlFor="password"
             className="block font-semibold text-gray-700 mb-1"
           >
             Contraseña
           </label>
-          <div className="login-password-row flex items-center gap-2 mb-4">
+          <div className="flex items-center gap-2 mb-4">
             <input
               id="password"
+              name="password"
               type={showPassword ? "text" : "password"}
-              placeholder="••••••••"
+              value={form.password}
+              onChange={handleChange}
               disabled={isBusy}
-              className="login-input-password flex-1 border border-gray-300 rounded-md p-2.5 focus:ring-2 focus:ring-teal-400 outline-none"
-              {...register("password")}
+              placeholder="••••••••"
+              className="flex-1 border border-gray-300 rounded-md p-2.5 focus:ring-2 focus:ring-teal-400 outline-none"
+              required
             />
             <button
               type="button"
-              className="btn-icon"
               onClick={() => setShowPassword((s) => !s)}
-              aria-pressed={showPassword}
+              className="text-gray-500 hover:text-gray-700"
               aria-label={
                 showPassword ? "Ocultar contraseña" : "Mostrar contraseña"
               }
-              disabled={isBusy}
             >
               {showPassword ? "👁️‍🗨️" : "👁️"}
             </button>
           </div>
-          {errors.password && (
-            <p className="text-sm text-red-600 mb-2">
-              {errors.password.message}
-            </p>
-          )}
 
-          <div className="login-row flex justify-between items-center mb-4 text-sm text-gray-600">
-            <label className="checkbox-label inline-flex items-center gap-2 cursor-pointer">
-              <input
-                type="checkbox"
-                disabled={isBusy}
-                {...register("remember")}
-              />
-              <span>Recuérdame</span>
-            </label>
-
-            <Link to="/forgot-password" className="link-muted hover:underline">
-              ¿Olvidaste tu contraseña?
-            </Link>
-          </div>
-
+          {/* BOTÓN LOGIN */}
           <button
             type="submit"
             disabled={isBusy}
-            className="btn-primary w-full bg-teal-500 hover:bg-teal-600 text-white font-semibold rounded-md py-2.5 transition"
+            className="w-full bg-teal-500 hover:bg-teal-600 text-white font-semibold rounded-md py-2.5 transition"
           >
             {isBusy ? "Ingresando..." : "Entrar"}
           </button>
 
-          <div className="login-divider flex items-center gap-3 my-4">
+          {/* DIVISOR */}
+          <div className="flex items-center gap-3 my-4">
             <div className="flex-1 h-px bg-gray-200"></div>
-            <span className="login-divider-content text-gray-400 text-sm">
-              o
-            </span>
+            <span className="text-gray-400 text-sm">o</span>
             <div className="flex-1 h-px bg-gray-200"></div>
           </div>
 
-          <button
-            type="button"
-            onClick={handleGoogleSignIn}
-            disabled={isBusy}
-            className="btn-google w-full border border-gray-300 bg-white rounded-md py-2.5 flex items-center justify-center gap-2 text-gray-800 font-medium hover:bg-gray-50 transition"
-          >
-            <svg
-              width="18"
-              height="18"
-              viewBox="0 0 533.5 544.3"
-              aria-hidden="true"
-            >
-              <path
-                fill="#4285f4"
-                d="M533.5 278.4c0-17.7-1.6-35.4-4.8-52.5H272v99.4h146.9c-6.4 34.9-26.1 64.4-55.6 84.2v69.9h89.6c52.4-48.3 82.6-119.5 82.6-200.9z"
-              />
-              <path
-                fill="#34a853"
-                d="M272 544.3c73.6 0 135.5-24.4 180.7-66.5l-89.6-69.9c-24.9 16.7-56.6 26.5-91.1 26.5-69.9 0-129.2-47.2-150.4-110.5H31.6v69.5C76.2 487 168.6 544.3 272 544.3z"
-              />
-              <path
-                fill="#fbbc04"
-                d="M121.6 327.9c-11.7-34.9-11.7-72.6 0-107.5V150.9H31.6c-39.3 78.3-39.3 171.6 0 249.9l90-72.9z"
-              />
-              <path
-                fill="#ea4335"
-                d="M272 109.7c38.9-.6 76.5 14.2 104.9 40.8l78.6-78.6C408.1 24.1 344.7-.2 272 0 168.6 0 76.2 57.3 31.6 150.9l90 69.5C142.8 157 202.1 109.7 272 109.7z"
-              />
-            </svg>
-            <span>Continuar con Google</span>
-          </button>
-
-          <div className="login-footer text-center text-gray-600 text-sm mt-4">
+          {/* REGISTRO */}
+          <div className="text-center text-gray-600 text-sm mt-4">
             ¿No tienes cuenta?{" "}
             <Link
               to="/register"
-              className="link-strong text-teal-600 font-semibold hover:underline"
+              className="text-teal-600 font-semibold hover:underline"
             >
               Regístrate
             </Link>
