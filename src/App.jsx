@@ -11,9 +11,7 @@ const Home = lazy(() => import("./pages/Home/Home"));
 const NewsView = lazy(() => import("./components/news/NewsView/NewsView"));
 const Login = lazy(() => import("./components/auth/Login/Login"));
 const Register = lazy(() => import("./components/auth/Register/Register"));
-const RegisterTest = lazy(() =>
-  import("./components/auth/Register/RegisterTest")
-);
+
 const Dashboard = lazy(() =>
   import("./components/dashboard/Dashboard/Dashboard")
 );
@@ -43,7 +41,6 @@ export default function App() {
             <Route path="/noticia/:id" element={<NewsView />} />
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
-            <Route path="/register-test" element={<RegisterTest />} />
 
             {/* Protegido: requiere autenticación y roles permitidos */}
             <Route
